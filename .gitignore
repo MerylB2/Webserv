@@ -39,3 +39,34 @@
 
 # debug information files
 *.dwo
+
+# Compiled files
+*.o
+*.out
+webserv
+a.out
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Tests
+tests/results/
+
+# Debug
+*.dSYM/
+vgcore.*
