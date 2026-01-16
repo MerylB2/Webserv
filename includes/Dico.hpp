@@ -56,8 +56,6 @@ struct LocationConfig {
 		root_dir(""),
    		index("index.html"),
     	autoindex(false),
-    	cgi_path(""),
-    	cgi_extension(""),
     	upload_dir(""),
 		redirect_url(""),
     	redirect_code(0),
@@ -326,21 +324,15 @@ struct ClientData {
 
     LocationConfig* location_config; // Pointeur vers la location qui correspond à l'URL demandée
 
-    pid_t cgi_pid; // PID du processus CGI (-1 si pas de CGI en cours)
-
-    int cgi_pipe_out; // Pipe pour lire la sortie du CGI (-1 si pas de CGI)
-
-    std::string cgi_buffer;  // Buffer pour accumuler la sortie du CGI
+    CGIData cgi; // Données du CGI (pid, pipes, buffer, timeout)
 
     time_t last_activity;  // Timestamp de la dernière activité (pour timeout)
 
-    ClientData(): 
+    ClientData():
         socket_fd(-1),
         state(CLIENT_READING),
         server_config(NULL),
         location_config(NULL),
-        cgi_pid(-1),
-        cgi_pipe_out(-1),
         last_activity(0)
     {}
 
@@ -351,9 +343,7 @@ struct ClientData {
         request.reset();
         response.reset();
         location_config = NULL;
-        cgi_pid = -1;
-        cgi_pipe_out = -1;
-        cgi_buffer.clear();
+        cgi.reset();
         last_activity = time(NULL);
     }
 };
@@ -405,6 +395,120 @@ namespace HttpStatus {
     const int NOT_IMPLEMENTED = 501;         // Fonctionnalité non implémentée
     const int BAD_GATEWAY = 502;             // Erreur avec le CGI
     const int GATEWAY_TIMEOUT = 504;         // CGI trop lent
+
+    // Retourne le message associé au code HTTP
+    // Exemple : getMessage(404) retourne "Not Found"
+    inline std::string getMessage(int code) {
+        switch (code) {
+            case 200: return "OK";
+            case 201: return "Created";
+            case 204: return "No Content";
+            case 301: return "Moved Permanently";
+            case 302: return "Found";
+            case 400: return "Bad Request";
+            case 403: return "Forbidden";
+            case 404: return "Not Found";
+            case 405: return "Method Not Allowed";
+            case 408: return "Request Timeout";
+            case 413: return "Payload Too Large";
+            case 414: return "URI Too Long";
+            case 500: return "Internal Server Error";
+            case 501: return "Not Implemented";
+            case 502: return "Bad Gateway";
+            case 504: return "Gateway Timeout";
+            default:  return "Unknown";
+        }
+    }
 }
+
+
+/* MIME TYPES
+Types MIME pour indiquer au navigateur le type de contenu envoyé.
+Le header Content-Type utilise ces valeurs.
+
+Exemple :
+  GET /style.css → Content-Type: text/css
+  GET /image.png → Content-Type: image/png
+*/
+
+namespace MimeTypes {
+    // Retourne le type MIME associé à une extension de fichier
+    // Exemple : getType(".html") retourne "text/html"
+    //           getType(".png") retourne "image/png"
+    inline std::string getType(const std::string& extension) {
+        // Text
+        if (extension == ".html" || extension == ".htm") return "text/html";
+        if (extension == ".css")  return "text/css";
+        if (extension == ".js")   return "application/javascript";
+        if (extension == ".json") return "application/json";
+        if (extension == ".xml")  return "application/xml";
+        if (extension == ".txt")  return "text/plain";
+
+        // Images
+        if (extension == ".png")  return "image/png";
+        if (extension == ".jpg" || extension == ".jpeg") return "image/jpeg";
+        if (extension == ".gif")  return "image/gif";
+        if (extension == ".ico")  return "image/x-icon";
+        if (extension == ".svg")  return "image/svg+xml";
+        if (extension == ".webp") return "image/webp";
+
+        // Fonts
+        if (extension == ".woff")  return "font/woff";
+        if (extension == ".woff2") return "font/woff2";
+        if (extension == ".ttf")   return "font/ttf";
+
+        // Documents
+        if (extension == ".pdf")  return "application/pdf";
+        if (extension == ".zip")  return "application/zip";
+        if (extension == ".tar")  return "application/x-tar";
+        if (extension == ".gz")   return "application/gzip";
+
+        // Audio/Video
+        if (extension == ".mp3")  return "audio/mpeg";
+        if (extension == ".mp4")  return "video/mp4";
+        if (extension == ".webm") return "video/webm";
+
+        // Par défaut : binaire générique
+        return "application/octet-stream";
+    }
+
+    // Extrait l'extension d'un chemin de fichier
+    // Exemple : getExtension("/www/style.css") retourne ".css"
+    inline std::string getExtension(const std::string& path) {
+        size_t pos = path.rfind('.');
+        if (pos == std::string::npos)
+            return "";
+        return path.substr(pos);
+    }
+}
+
+
+/* CGI DATA
+Regroupe les données liées à l'exécution d'un script CGI.
+Utilisé dans ClientData pour gérer l'état du CGI.
+*/
+
+struct CGIData {
+    pid_t pid;              // PID du processus CGI (-1 si pas de CGI)
+    int pipe_in;            // Pipe pour envoyer le body au CGI (stdin du CGI)
+    int pipe_out;           // Pipe pour lire la sortie du CGI (stdout du CGI)
+    std::string buffer;     // Buffer pour accumuler la sortie du CGI
+    time_t start_time;      // Timestamp du lancement (pour timeout)
+
+    CGIData() :
+        pid(-1),
+        pipe_in(-1),
+        pipe_out(-1),
+        start_time(0)
+    {}
+
+    void reset() {
+        pid = -1;
+        pipe_in = -1;
+        pipe_out = -1;
+        buffer.clear();
+        start_time = 0;
+    }
+};
 
 #endif
