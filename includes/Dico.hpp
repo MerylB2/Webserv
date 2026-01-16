@@ -1,5 +1,5 @@
-#ifndef TYPES_HPP
-#define TYPES_HPP
+#ifndef DICO_HPP
+#define DICO_HPP
 
 #include <string>
 #include <vector>
@@ -34,11 +34,11 @@ struct LocationConfig {
     bool autoindex;  // Si true et pas de fichier index, on liste le contenu du dossier
 					  // Si false et pas de fichier index, on renvoie erreur 404
 
-    std::string cgi_path; // Chemin vers l'interpréteur CGI (ex: "/usr/bin/python3")
-						 // Si défini, les fichiers sont exécutés au lieu d'être renvoyés
-
-    std::string cgi_extension;  // Extension des fichiers CGI (ex: ".py", ".php")
-							   // Seuls les fichiers avec cette extension sont traités en CGI			
+    std::map<std::string, std::string> cgi_handlers; // CGI handlers par extension
+                                                     // Clé = extension (ex: ".py", ".php")
+                                                     // Valeur = chemin interpréteur (ex: "/usr/bin/python3")
+                                                     // Exemple : cgi_handlers[".py"] = "/usr/bin/python3"
+                                                     //           cgi_handlers[".php"] = "/usr/bin/php-cgi"			
 
     std::string upload_dir;  // Dossier où sauvegarder les fichiers uploadés via POST
 

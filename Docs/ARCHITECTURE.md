@@ -10,117 +10,240 @@ Serveur HTTP en C++98 capable de gérer GET, POST, DELETE, servir des fichiers s
 
 ```
 webserv/
-├── Makefile
-├── config/
-│   └── default.conf              # Configuration par défaut
 │
-├── includes/                     # Headers
-│   ├── Types.hpp                 # Structures de données (FAIT)
-│   ├── Server.hpp                # Classe serveur principal
-│   ├── Config.hpp                # Parser de configuration
-│   ├── Client.hpp                # Gestion des connexions client
-│   ├── Request.hpp               # Parsing des requêtes HTTP
-│   ├── Response.hpp              # Construction des réponses HTTP
-│   ├── Router.hpp                # Routing des requêtes vers les handlers
-│   ├── CGI.hpp                   # Gestion des scripts CGI
-│   └── Utils.hpp                 # Fonctions utilitaires
+├── Makefile                              # Compilation du projet
+├── README.md                             # Documentation du projet
 │
-├── srcs/
-│   ├── main.cpp                  # Point d'entrée
-│   │
-│   ├── config/                   # Parsing de configuration
-│   │   ├── ConfigParser.cpp      # Parse le fichier .conf
-│   │   └── ConfigValidator.cpp   # Valide la configuration
-│   │
-│   ├── server/                   # Coeur du serveur
-│   │   ├── Server.cpp            # Boucle principale poll()
-│   │   ├── Socket.cpp            # Création/gestion des sockets
-│   │   └── EventLoop.cpp         # Gestion des événements I/O
-│   │
-│   ├── client/                   # Gestion des clients
-│   │   ├── Client.cpp            # Cycle de vie d'une connexion
-│   │   └── ClientManager.cpp     # Pool de connexions
-│   │
-│   ├── http/                     # Protocole HTTP
-│   │   ├── RequestParser.cpp     # Parse ligne de requête + headers + body
-│   │   ├── ResponseBuilder.cpp   # Construit la réponse HTTP
-│   │   └── HttpUtils.cpp         # MIME types, status codes, etc.
-│   │
-│   ├── handlers/                 # Traitement des requêtes
-│   │   ├── Router.cpp            # Match URL -> LocationConfig
-│   │   ├── GetHandler.cpp        # Méthode GET (fichiers statiques)
-│   │   ├── PostHandler.cpp       # Méthode POST (upload)
-│   │   ├── DeleteHandler.cpp     # Méthode DELETE
-│   │   ├── DirectoryListing.cpp  # Autoindex
-│   │   └── ErrorHandler.cpp      # Pages d'erreur
-│   │
-│   ├── cgi/                      # CGI
-│   │   ├── CGIHandler.cpp        # Fork + execve du script
-│   │   ├── CGIEnv.cpp            # Variables d'environnement CGI
-│   │   └── CGIPipes.cpp          # Communication via pipes
-│   │
-│   └── utils/                    # Utilitaires
-│       ├── StringUtils.cpp       # Manipulation de strings
-│       ├── FileUtils.cpp         # Opérations sur fichiers
-│       └── Logger.cpp            # Logging (optionnel)
+├── config/                               # FICHIERS DE CONFIGURATION
+│   ├── default.conf                      # Config par défaut (si aucun argument)
+│   ├── multiple_servers.conf             # Config multi-serveurs (test multi-ports)
+│   └── test.conf                         # Config minimale pour debug
 │
-├── www/                          # Fichiers web à servir
-│   ├── index.html
-│   ├── style.css
-│   ├── uploads/                  # Dossier d'upload
-│   └── error/
-│       ├── 400.html
-│       ├── 403.html
-│       ├── 404.html
-│       ├── 405.html
-│       ├── 413.html
-│       ├── 500.html
-│       └── 502.html
+├── includes/                             # HEADERS (.hpp)
+│   │
+│   ├── core/                             # Coeur du serveur
+│   │   ├── Dico.hpp                      # Structures partagées (FAIT)
+│   │   ├── Server.hpp                    # Classe principale, boucle poll()
+│   │   ├── Client.hpp                    # Gestion d'une connexion
+│   │   └── Socket.hpp                    # Gestion des sockets
+│   │
+│   ├── config/                           # Parsing configuration
+│   │   └── ConfigParser.hpp              # Parser du fichier .conf
+│   │
+│   ├── http/                             # Protocole HTTP
+│   │   ├── Request.hpp                   # Parsing des requêtes
+│   │   ├── Response.hpp                  # Construction des réponses
+│   │   └── Router.hpp                    # Matching des routes
+│   │
+│   ├── cgi/                              # Gestion CGI
+│   │   └── CGIHandler.hpp                # fork/execve pour scripts
+│   │
+│   └── utils/                            # Utilitaires
+│       ├── Utils.hpp                     # Fonctions helper
+│       └── Logger.hpp                    # Logs du serveur (optionnel)
 │
-├── cgi-bin/                      # Scripts CGI
-│   ├── test.py
-│   └── test.php
+├── srcs/                                 # CODE SOURCE (.cpp)
+│   │
+│   ├── main.cpp                          # Point d'entrée
+│   │
+│   ├── core/                             # Coeur du serveur
+│   │   ├── Server.cpp                    # Boucle principale
+│   │   ├── Client.cpp                    # Gestion connexion
+│   │   └── Socket.cpp                    # Gestion des sockets
+│   │
+│   ├── config/                           # Parsing configuration
+│   │   ├── ConfigParser.cpp              # Parser principal
+│   │   ├── ServerConfig.cpp              # Parsing bloc server
+│   │   └── LocationConfig.cpp            # Parsing bloc location
+│   │
+│   ├── http/                             # Protocole HTTP
+│   │   ├── Request.cpp                   # Parsing requêtes
+│   │   ├── Response.cpp                  # Construction réponses
+│   │   └── Router.cpp                    # Matching routes
+│   │
+│   ├── cgi/                              # Gestion CGI
+│   │   ├── CGIHandler.cpp                # Implémentation CGI
+│   │   └── FileHandler.cpp               # Gestion fichiers CGI
+│   │
+│   └── utils/                            # Utilitaires
+│       ├── Utils.cpp                     # Fonctions helper
+│       └── Logger.cpp                    # Logs (optionnel)
 │
-└── tests/                        # Tests
-    ├── test_config.py
-    ├── test_get.py
-    ├── test_post.py
-    ├── test_delete.py
-    ├── test_cgi.py
-    └── stress_test.py
+├── www/                                  # CONTENU WEB À SERVIR
+│   │
+│   ├── index.html                        # Page d'accueil par défaut
+│   ├── style.css                         # Feuille de style
+│   │
+│   ├── pages/                            # Pages statiques
+│   │   ├── about.html
+│   │   └── contact.html
+│   │
+│   ├── errors/                           # Pages d'erreur personnalisées
+│   │   ├── 400.html                      # Bad Request
+│   │   ├── 403.html                      # Forbidden
+│   │   ├── 404.html                      # Not Found
+│   │   ├── 405.html                      # Method Not Allowed
+│   │   ├── 413.html                      # Payload Too Large
+│   │   └── 500.html                      # Internal Server Error
+│   │
+│   ├── uploads/                          # Dossier pour fichiers uploadés
+│   │   └── .gitkeep                      # Garde le dossier vide dans git
+│   │
+│   └── cgi-bin/                          # Scripts CGI de test
+│       ├── test.py                       # Script Python de test
+│       ├── form.py                       # Traitement formulaire
+│       └── info.php                      # Script PHP (si php-cgi dispo)
+│
+└── tests/                                # TESTS
+    │
+    ├── test_config/                      # Configs pour tests automatisés
+    │   ├── valid.conf
+    │   └── invalid.conf
+    │
+    ├── test_files/                       # Fichiers de différentes tailles
+    │   ├── small.txt
+    │   └── large.bin
+    │
+    └── scripts/                          # Scripts de test
+        ├── test_get.sh                   # Tests requêtes GET
+        ├── test_post.sh                  # Tests requêtes POST
+        ├── test_cgi.sh                   # Tests CGI
+        └── stress_test.sh                # Tests de charge
+```
+
+---
+
+## Répartition pour 3 personnes
+
+### PERSONNE 1 : Configuration + Serveur
+
+```
+├── includes/config/ConfigParser.hpp
+├── includes/core/Server.hpp
+├── includes/core/Socket.hpp
+├── srcs/config/ConfigParser.cpp
+├── srcs/config/ServerConfig.cpp
+├── srcs/config/LocationConfig.cpp
+├── srcs/core/Server.cpp
+├── srcs/core/Socket.cpp
+├── srcs/main.cpp
+└── config/*.conf
+```
+
+**Responsabilités** :
+- Parser le fichier de configuration
+- Créer les sockets d'écoute
+- Boucle principale poll()
+- Accepter les nouvelles connexions
+
+---
+
+### PERSONNE 2 : HTTP (Request/Response/Router)
+
+```
+├── includes/http/Request.hpp
+├── includes/http/Response.hpp
+├── includes/http/Router.hpp
+├── srcs/http/Request.cpp
+├── srcs/http/Response.cpp
+├── srcs/http/Router.cpp
+└── www/errors/*.html
+```
+
+**Responsabilités** :
+- Parser les requêtes HTTP (méthode, URI, headers, body)
+- Construire les réponses HTTP
+- Matcher les URLs avec les locations
+- Gérer GET, POST, DELETE
+- Pages d'erreur
+
+---
+
+### PERSONNE 3 : Client + CGI
+
+```
+├── includes/core/Client.hpp
+├── includes/cgi/CGIHandler.hpp
+├── srcs/core/Client.cpp
+├── srcs/cgi/CGIHandler.cpp
+├── srcs/cgi/FileHandler.cpp
+└── www/cgi-bin/*.py
+```
+
+**Responsabilités** :
+- Gérer le cycle de vie d'une connexion client
+- Gérer les états (READING → PROCESSING → WRITING)
+- Fork + execve des scripts CGI
+- Communication via pipes
+- Timeouts
+
+---
+
+### PARTAGÉ (tout le monde)
+
+```
+├── includes/core/Dico.hpp       ← À définir ENSEMBLE au début
+├── includes/utils/Utils.hpp
+├── srcs/utils/Utils.cpp
+└── tests/*
 ```
 
 ---
 
 ## Modules et responsabilités
 
-### 1. Config (Parsing de configuration)
+### 1. Dico.hpp (FAIT)
 
-**Fichiers**: `ConfigParser.cpp`, `ConfigValidator.cpp`
-
-**Responsabilités**:
-- Lire et parser le fichier de configuration style NGINX
-- Remplir les structures `ServerConfig` et `LocationConfig`
-- Valider les valeurs (ports, chemins, méthodes)
-
-**Entrée**: Fichier `.conf`
-**Sortie**: `std::vector<ServerConfig>`
+**Contenu** :
+- `LocationConfig` : config d'un bloc location
+- `ServerConfig` : config d'un bloc server
+- `Request` : requête HTTP parsée
+- `Response` : réponse HTTP à envoyer
+- `ClientData` : état d'une connexion
+- `RequestState` : états du parsing
+- `ClientState` : états du client
+- `WebservConfig` : constantes (timeouts, buffers)
+- `HttpStatus` : codes HTTP
 
 ---
 
-### 2. Server (Boucle principale)
+### 2. ConfigParser
 
-**Fichiers**: `Server.cpp`, `Socket.cpp`, `EventLoop.cpp`
+**Fichiers** : `ConfigParser.cpp`, `ServerConfig.cpp`, `LocationConfig.cpp`
 
-**Responsabilités**:
-- Créer les sockets d'écoute pour chaque port configuré
-- Boucle infinie avec `poll()` / `epoll()`
-- Accepter les nouvelles connexions
-- Dispatcher les événements read/write aux clients
-- Gérer les timeouts
+**Entrée** : Fichier `.conf`
+**Sortie** : `std::vector<ServerConfig>`
 
-**Cycle principal**:
+**Directives supportées** :
 ```
+server {
+    listen 8080;
+    server_name localhost;
+    root ./www;
+    index index.html;
+    client_max_body_size 10M;
+    error_page 404 /errors/404.html;
+
+    location /path {
+        root ./www/path;
+        allowed_methods GET POST;
+        autoindex on;
+        index index.html;
+        upload_path ./www/uploads;
+        cgi_extension .py /usr/bin/python3;
+        return 301 /redirect;
+    }
+}
+```
+
+---
+
+### 3. Server
+
+**Fichiers** : `Server.cpp`, `Socket.cpp`
+
+**Boucle principale** :
+```cpp
 while (running) {
     poll(fds, nfds, timeout);
 
@@ -140,91 +263,81 @@ while (running) {
 
 ---
 
-### 3. Client (Gestion des connexions)
+### 4. Client
 
-**Fichiers**: `Client.cpp`, `ClientManager.cpp`
+**Fichiers** : `Client.cpp`
 
-**Responsabilités**:
-- Stocker l'état de chaque connexion (`ClientData`)
-- Gérer le cycle: READING -> PROCESSING -> WRITING -> DONE
-- Support du keep-alive (reset entre requêtes)
-- Timeouts par client
-
----
-
-### 4. HTTP Request (Parsing)
-
-**Fichiers**: `RequestParser.cpp`
-
-**Responsabilités**:
-- Parser la request line: `GET /path HTTP/1.1`
-- Parser les headers
-- Gérer le body (Content-Length ou chunked)
-- Décoder l'URI et query string
-
-**États de parsing** (définis dans `Types.hpp`):
+**Cycle de vie** :
 ```
-REQUEST_LINE -> HEADERS -> BODY/CHUNKED_BODY -> COMPLETE
+CLIENT_READING      → recv() données
+CLIENT_PROCESSING   → traiter la requête
+CLIENT_WAITING_CGI  → attendre le CGI (si applicable)
+CLIENT_WRITING      → send() réponse
+CLIENT_DONE         → reset() ou fermer
 ```
 
 ---
 
-### 5. HTTP Response (Construction)
+### 5. Request
 
-**Fichiers**: `ResponseBuilder.cpp`, `HttpUtils.cpp`
+**Fichiers** : `Request.cpp`
 
-**Responsabilités**:
-- Construire la status line: `HTTP/1.1 200 OK`
-- Ajouter les headers (Content-Type, Content-Length, etc.)
-- Déterminer le MIME type selon l'extension
-- Remplir le `send_buffer`
+**Parsing d'une requête** :
+```
+GET /search?q=hello HTTP/1.1\r\n     ← REQUEST_LINE
+Host: localhost\r\n                   ← HEADERS
+Content-Length: 5\r\n                 ← HEADERS
+\r\n                                  ← Fin headers
+Hello                                 ← BODY
+```
 
----
-
-### 6. Handlers (Traitement des requêtes)
-
-**Fichiers**: `Router.cpp`, `GetHandler.cpp`, `PostHandler.cpp`, `DeleteHandler.cpp`
-
-#### Router
-- Matcher l'URI avec les `LocationConfig`
-- Trouver la location la plus spécifique
-
-#### GetHandler
-- Vérifier que GET est autorisé
-- Résoudre le chemin du fichier
-- Servir le fichier ou déclencher l'autoindex
-- Gérer les redirections
-
-#### PostHandler
-- Vérifier que POST est autorisé
-- Vérifier la taille du body vs `max_body_size`
-- Sauvegarder le fichier uploadé
-- Parser multipart/form-data si nécessaire
-
-#### DeleteHandler
-- Vérifier que DELETE est autorisé
-- Supprimer le fichier demandé
-- Retourner 204 No Content
+**États** : `REQUEST_LINE` → `HEADERS` → `BODY` → `COMPLETE`
 
 ---
 
-### 7. CGI (Common Gateway Interface)
+### 6. Response
 
-**Fichiers**: `CGIHandler.cpp`, `CGIEnv.cpp`, `CGIPipes.cpp`
+**Fichiers** : `Response.cpp`
 
-**Responsabilités**:
-- Détecter si l'URI matche une extension CGI (.py, .php)
-- Préparer les variables d'environnement CGI
-- Fork + execve du script
-- Envoyer le body via pipe (stdin du CGI)
-- Lire la sortie via pipe (stdout du CGI)
-- Gérer le timeout CGI
+**Construction d'une réponse** :
+```
+HTTP/1.1 200 OK\r\n
+Content-Type: text/html\r\n
+Content-Length: 13\r\n
+\r\n
+<html>...</html>
+```
 
-**Variables d'environnement CGI**:
+---
+
+### 7. Router
+
+**Fichiers** : `Router.cpp`
+
+**Responsabilités** :
+- Matcher l'URI avec la `LocationConfig` la plus spécifique
+- Vérifier que la méthode est autorisée
+- Résoudre le chemin du fichier sur le disque
+- Déclencher le bon handler (fichier, CGI, redirect, autoindex)
+
+---
+
+### 8. CGIHandler
+
+**Fichiers** : `CGIHandler.cpp`, `FileHandler.cpp`
+
+**Processus** :
+1. Détecter si l'extension matche (.py, .php)
+2. Préparer les variables d'environnement
+3. `fork()`
+4. Dans l'enfant : `dup2()` + `execve()`
+5. Dans le parent : écrire le body dans le pipe, lire la sortie
+
+**Variables d'environnement CGI** :
 ```
 REQUEST_METHOD, QUERY_STRING, CONTENT_TYPE, CONTENT_LENGTH,
-PATH_INFO, PATH_TRANSLATED, SCRIPT_NAME, SERVER_NAME,
-SERVER_PORT, SERVER_PROTOCOL, HTTP_* (headers)
+PATH_INFO, SCRIPT_NAME, SERVER_NAME, SERVER_PORT,
+SERVER_PROTOCOL, HTTP_* (headers convertis)
 ```
 
 ---
@@ -234,15 +347,15 @@ SERVER_PORT, SERVER_PROTOCOL, HTTP_* (headers)
 ```
 Client HTTP                     Webserv
     |                              |
-    |---- TCP connect ------------>| accept()
+    |---- TCP connect ------------>| accept() → nouveau ClientData
     |                              |
-    |---- "GET /index.html..." --->| recv() -> RequestParser
+    |---- "GET /index.html..." --->| recv() → Request.parse()
     |                              |           |
-    |                              |     Router.match()
+    |                              |     Router.match(uri)
     |                              |           |
-    |                              |     GetHandler.handle()
+    |                              |     [GetHandler / PostHandler / CGI]
     |                              |           |
-    |                              |     ResponseBuilder.build()
+    |                              |     Response.build()
     |                              |           |
     |<--- "HTTP/1.1 200 OK..." ----| send()
     |                              |
@@ -256,7 +369,8 @@ Client HTTP                     Webserv
 
 ### Obligatoire
 
-- [ ] Parsing de configuration (server, location, listen, root, index...)
+- [x] Structures de données (Dico.hpp)
+- [ ] Parsing de configuration
 - [ ] Écoute sur plusieurs ports
 - [ ] I/O non-bloquant avec poll()/epoll()
 - [ ] Gestion de multiples clients simultanés
@@ -281,20 +395,24 @@ Client HTTP                     Webserv
 
 ## Ordre d'implémentation suggéré
 
-1. **Config Parser** - Lire le fichier de configuration
-2. **Socket + Server** - Écouter sur un port, accepter des connexions
-3. **Request Parser** - Parser les requêtes HTTP basiques
-4. **Response Builder** - Construire des réponses HTTP
-5. **GET Handler** - Servir des fichiers statiques
-6. **Router** - Matcher les locations
-7. **Error Pages** - Pages d'erreur
-8. **POST Handler** - Upload de fichiers
-9. **DELETE Handler** - Suppression de fichiers
-10. **CGI** - Exécution de scripts
-11. **Autoindex** - Listing de répertoires
-12. **Redirections** - 301/302
-13. **Multi-server** - Plusieurs blocs server
-14. **Stress testing** - S'assurer de la robustesse
+| Étape | Module | Description |
+|-------|--------|-------------|
+| 1 | Dico.hpp | Structures de données (FAIT) |
+| 2 | ConfigParser | Lire le fichier de configuration |
+| 3 | Socket + Server | Écouter sur un port, accepter des connexions |
+| 4 | Client | Gérer le cycle de vie d'une connexion |
+| 5 | Request | Parser les requêtes HTTP |
+| 6 | Response | Construire des réponses HTTP |
+| 7 | Router | Matcher les locations |
+| 8 | GET Handler | Servir des fichiers statiques |
+| 9 | Error Pages | Pages d'erreur |
+| 10 | POST Handler | Upload de fichiers |
+| 11 | DELETE Handler | Suppression de fichiers |
+| 12 | CGI | Exécution de scripts |
+| 13 | Autoindex | Listing de répertoires |
+| 14 | Redirections | 301/302 |
+| 15 | Multi-server | Plusieurs blocs server |
+| 16 | Stress testing | Robustesse |
 
 ---
 
@@ -303,4 +421,4 @@ Client HTTP                     Webserv
 - RFC 2616 (HTTP/1.1)
 - RFC 3875 (CGI)
 - Configuration NGINX
-- man pages: poll, epoll, socket, accept, send, recv, fork, execve, pipe
+- `man poll`, `epoll`, `socket`, `accept`, `send`, `recv`, `fork`, `execve`, `pipe`
