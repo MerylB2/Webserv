@@ -1,23 +1,15 @@
 #include "../../includes/http/Router.hpp"
 #include <sys/stat.h>
-#include <algorithm>
 
-/* ========== Constructeur / Destructeur ========== */
-
-Router::Router() {}
-
-Router::~Router() {}
+namespace Router {
 
 /* ========== Route principale ========== */
 
-/*
-Route une requête et détermine le type de réponse à générer.
-*/
-RouteResult Router::route(const Request& request, ServerConfig* server) {
+RouteResult route(const Request& request, ServerConfig* server) {
     RouteResult result;
 
     // 1. Trouver la location correspondante
-    LocationConfig* loc = matchLocation(request.getUri(), server);
+    LocationConfig* loc = matchLocation(request.uri, server);
     if (!loc) {
         result.type = ROUTE_ERROR;
         result.error_code = HttpStatus::NOT_FOUND;
@@ -33,14 +25,14 @@ RouteResult Router::route(const Request& request, ServerConfig* server) {
     }
 
     // 3. Vérifier que la méthode est autorisée
-    if (!isMethodAllowed(request.getMethod(), loc)) {
+    if (!isMethodAllowed(request.method, loc)) {
         result.type = ROUTE_ERROR;
         result.error_code = HttpStatus::METHOD_NOT_ALLOWED;
         return result;
     }
 
     // 4. Résoudre le chemin du fichier
-    std::string filepath = resolvePath(request.getUri(), loc);
+    std::string filepath = resolvePath(request.uri, loc);
     result.filepath = filepath;
 
     // 5. Vérifier si c'est un CGI
@@ -52,7 +44,6 @@ RouteResult Router::route(const Request& request, ServerConfig* server) {
 
     // 6. Vérifier si le fichier/répertoire existe
     if (isDirectory(filepath)) {
-        // Chercher le fichier index
         std::string index_path = filepath;
         if (index_path[index_path.size() - 1] != '/')
             index_path += "/";
@@ -79,23 +70,10 @@ RouteResult Router::route(const Request& request, ServerConfig* server) {
 
 /* ========== Matching de location ========== */
 
-/*
-Trouve la LocationConfig qui matche le mieux l'URI.
-Utilise le matching par préfixe le plus long.
-
-Exemple :
-    URI = "/images/photo.jpg"
-    Locations : "/", "/images", "/images/thumbnails"
-    Match : "/images" (préfixe le plus long qui matche)
-*/
-LocationConfig* Router::matchLocation(const std::string& uri, ServerConfig* server) {
+LocationConfig* matchLocation(const std::string& uri, ServerConfig* server) {
     if (!server)
         return NULL;
 
-    return findBestMatch(uri, server);
-}
-
-LocationConfig* Router::findBestMatch(const std::string& uri, ServerConfig* server) {
     LocationConfig* best_match = NULL;
     size_t best_length = 0;
 
@@ -103,14 +81,10 @@ LocationConfig* Router::findBestMatch(const std::string& uri, ServerConfig* serv
         LocationConfig& loc = server->locations[i];
         const std::string& path = loc.path_url;
 
-        // Vérifier si l'URI commence par le path de la location
         if (uri.compare(0, path.size(), path) == 0) {
-            // Vérifier que c'est une correspondance complète
-            // (soit fin de l'URI, soit suivi de '/')
             if (uri.size() == path.size() ||
                 path == "/" ||
                 uri[path.size()] == '/') {
-                // Garder le match le plus long
                 if (path.size() > best_length) {
                     best_length = path.size();
                     best_match = &loc;
@@ -124,10 +98,7 @@ LocationConfig* Router::findBestMatch(const std::string& uri, ServerConfig* serv
 
 /* ========== Vérification de méthode ========== */
 
-/*
-Vérifie si la méthode HTTP est autorisée pour cette location.
-*/
-bool Router::isMethodAllowed(const std::string& method, const LocationConfig* loc) const {
+bool isMethodAllowed(const std::string& method, const LocationConfig* loc) {
     if (!loc)
         return false;
 
@@ -141,16 +112,7 @@ bool Router::isMethodAllowed(const std::string& method, const LocationConfig* lo
 
 /* ========== Résolution de chemin ========== */
 
-/*
-Résout le chemin complet du fichier sur le disque.
-
-Exemple :
-    URI = "/images/photo.jpg"
-    Location path = "/images"
-    Location root = "./www/img"
-    Résultat = "./www/img/photo.jpg"
-*/
-std::string Router::resolvePath(const std::string& uri, const LocationConfig* loc) const {
+std::string resolvePath(const std::string& uri, const LocationConfig* loc) {
     if (!loc)
         return "";
 
@@ -158,11 +120,9 @@ std::string Router::resolvePath(const std::string& uri, const LocationConfig* lo
     if (root.empty())
         root = "./www";
 
-    // Enlever le slash final du root si présent
     if (!root.empty() && root[root.size() - 1] == '/')
         root = root.substr(0, root.size() - 1);
 
-    // Calculer le chemin relatif (URI sans le préfixe de la location)
     std::string relative_path;
     if (loc->path_url == "/") {
         relative_path = uri;
@@ -172,7 +132,6 @@ std::string Router::resolvePath(const std::string& uri, const LocationConfig* lo
         relative_path = "/";
     }
 
-    // S'assurer que le chemin relatif commence par /
     if (relative_path.empty() || relative_path[0] != '/')
         relative_path = "/" + relative_path;
 
@@ -181,24 +140,21 @@ std::string Router::resolvePath(const std::string& uri, const LocationConfig* lo
 
 /* ========== Vérifications de fichier ========== */
 
-bool Router::isDirectory(const std::string& path) const {
+bool isDirectory(const std::string& path) {
     struct stat st;
     if (stat(path.c_str(), &st) != 0)
         return false;
     return S_ISDIR(st.st_mode);
 }
 
-bool Router::fileExists(const std::string& path) const {
+bool fileExists(const std::string& path) {
     struct stat st;
     return (stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode));
 }
 
 /* ========== CGI ========== */
 
-/*
-Vérifie si le fichier est un script CGI basé sur son extension.
-*/
-bool Router::isCGI(const std::string& path, const LocationConfig* loc) const {
+bool isCGI(const std::string& path, const LocationConfig* loc) {
     if (!loc || loc->cgi_handlers.empty())
         return false;
 
@@ -206,10 +162,7 @@ bool Router::isCGI(const std::string& path, const LocationConfig* loc) const {
     return (loc->cgi_handlers.find(ext) != loc->cgi_handlers.end());
 }
 
-/*
-Retourne le chemin de l'interpréteur CGI pour cette extension.
-*/
-std::string Router::getCGIInterpreter(const std::string& filepath, const LocationConfig* loc) const {
+std::string getCGIInterpreter(const std::string& filepath, const LocationConfig* loc) {
     if (!loc)
         return "";
 
@@ -221,3 +174,5 @@ std::string Router::getCGIInterpreter(const std::string& filepath, const Locatio
 
     return "";
 }
+
+} // namespace Router

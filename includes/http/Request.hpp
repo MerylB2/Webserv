@@ -4,57 +4,33 @@
 #include "../core/Dico.hpp"
 
 /*
-Classe Request : Parse les requêtes HTTP reçues des clients.
-
-Responsabilités :
-- Parser la request line (GET /path HTTP/1.1)
-- Parser les headers
-- Parser le body (Content-Length ou chunked)
-- Gérer les erreurs de parsing
+Fonctions de parsing pour les requêtes HTTP.
+Utilise la struct Request définie dans Dico.hpp.
 
 Utilisation :
     Request req;
-    req.parse(raw_data);  // Retourne true si parsing complet
-    if (req.getState() == COMPLETE) {
-        // Requête prête à traiter
+    bool complete = RequestParser::parse(req, raw_data);
+    if (req.state == COMPLETE) {
+        std::cout << req.method << " " << req.uri << std::endl;
     }
 */
 
-class Request {
-private:
-    ::Request _data;  // Structure de données (définie dans Dico.hpp)
-
-    // Méthodes de parsing internes
-    bool parseRequestLine(const std::string& line);
-    bool parseHeader(const std::string& line);
-    bool parseBody();
-    bool parseChunkedBody();
-
-public:
-    Request();
-    ~Request();
-    Request(const Request& other);
-    Request& operator=(const Request& other);
-
-    // Parse les données brutes reçues du client
+namespace RequestParser {
+    // Parse les données brutes et remplit la struct Request
     // Retourne true si la requête est complète
-    bool parse(const std::string& raw_data);
+    bool parse(Request& req, const std::string& raw_data);
 
-    // Getters
-    const std::string& getMethod() const;
-    const std::string& getUri() const;
-    const std::string& getQueryString() const;
-    const std::string& getVersion() const;
-    const std::string& getBody() const;
-    const std::map<std::string, std::string>& getHeaders() const;
-    std::string getHeader(const std::string& name) const;
-    RequestState getState() const;
-    int getErrorCode() const;
-    size_t getContentLength() const;
-    bool isChunked() const;
+    // Parse la request line : "GET /path?query HTTP/1.1"
+    bool parseRequestLine(Request& req, const std::string& line);
 
-    // Reset pour keep-alive
-    void reset();
-};
+    // Parse un header : "Content-Type: text/html"
+    bool parseHeader(Request& req, const std::string& line);
+
+    // Parse le body avec Content-Length
+    bool parseBody(Request& req);
+
+    // Parse le body en mode chunked
+    bool parseChunkedBody(Request& req);
+}
 
 #endif

@@ -38,7 +38,11 @@ struct LocationConfig {
 						 // Si défini, les fichiers sont exécutés au lieu d'être renvoyés
 
     std::string cgi_extension;  // Extension des fichiers CGI (ex: ".py", ".php")
-							   // Seuls les fichiers avec cette extension sont traités en CGI			
+							   // Seuls les fichiers avec cette extension sont traités en CGI
+
+    std::map<std::string, std::string> cgi_handlers; // Map extension -> interpréteur
+                                                     // Ex: cgi_handlers[".py"] = "/usr/bin/python3"
+                                                     // Ex: cgi_handlers[".php"] = "/usr/bin/php"			
 
     std::string upload_dir;  // Dossier où sauvegarder les fichiers uploadés via POST
 
@@ -405,6 +409,68 @@ namespace HttpStatus {
     const int NOT_IMPLEMENTED = 501;         // Fonctionnalité non implémentée
     const int BAD_GATEWAY = 502;             // Erreur avec le CGI
     const int GATEWAY_TIMEOUT = 504;         // CGI trop lent
+
+    // Fonction pour obtenir le message associé à un code
+    inline std::string getMessage(int code) {
+        switch (code) {
+            case 200: return "OK";
+            case 201: return "Created";
+            case 204: return "No Content";
+            case 301: return "Moved Permanently";
+            case 302: return "Found";
+            case 400: return "Bad Request";
+            case 403: return "Forbidden";
+            case 404: return "Not Found";
+            case 405: return "Method Not Allowed";
+            case 408: return "Request Timeout";
+            case 413: return "Payload Too Large";
+            case 414: return "URI Too Long";
+            case 500: return "Internal Server Error";
+            case 501: return "Not Implemented";
+            case 502: return "Bad Gateway";
+            case 504: return "Gateway Timeout";
+            default: return "Unknown";
+        }
+    }
+}
+
+
+/* MIME TYPES
+Types MIME pour les réponses HTTP.
+Permet de déterminer le Content-Type en fonction de l'extension du fichier.
+*/
+
+namespace MimeTypes {
+    // Retourne le type MIME pour une extension donnée
+    inline std::string getType(const std::string& ext) {
+        if (ext == ".html" || ext == ".htm") return "text/html";
+        if (ext == ".css") return "text/css";
+        if (ext == ".js") return "application/javascript";
+        if (ext == ".json") return "application/json";
+        if (ext == ".xml") return "application/xml";
+        if (ext == ".txt") return "text/plain";
+        if (ext == ".png") return "image/png";
+        if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+        if (ext == ".gif") return "image/gif";
+        if (ext == ".svg") return "image/svg+xml";
+        if (ext == ".ico") return "image/x-icon";
+        if (ext == ".pdf") return "application/pdf";
+        if (ext == ".zip") return "application/zip";
+        if (ext == ".mp3") return "audio/mpeg";
+        if (ext == ".mp4") return "video/mp4";
+        if (ext == ".webm") return "video/webm";
+        if (ext == ".woff") return "font/woff";
+        if (ext == ".woff2") return "font/woff2";
+        return "application/octet-stream";
+    }
+
+    // Extrait l'extension d'un chemin de fichier
+    inline std::string getExtension(const std::string& path) {
+        size_t pos = path.rfind('.');
+        if (pos == std::string::npos)
+            return "";
+        return path.substr(pos);
+    }
 }
 
 #endif
