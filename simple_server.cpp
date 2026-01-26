@@ -1,4 +1,4 @@
-#include "server.hpp"
+#include "includes/core/Server.hpp"
 
 //Variable globale pour arreter proprement la boucle principale
 bool g_running = true;
@@ -216,27 +216,34 @@ int Server::createServerSocket(int port)
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
+    // Utilise le parametre port au lieu de 8080 en dur
+    address.sin_port = htons(port);
 
-    std::cout << "Adresse configure (0.0.0.0:8080)" << std::endl;
-    
-    std::cout << "Attachement au port 8080" << std::endl;
+    std::cout << "Adresse configure (0.0.0.0:" << port << ")" << std::endl;
 
+    std::cout << "Attachement au port " << port << std::endl;
+
+    // Bind : attache le socket au port
     if (bind(serverFd, (struct sockaddr*)&address, sizeof(address)) < 0)
     {
-        std::cerr << "ERREUR: Impossible de bind au port 8080"  << std::endl;
+        std::cerr << "ERREUR: Impossible de bind au port " << port << std::endl;
         close(serverFd);
         return -1;
     }
 
-    std::cout << "Socket attache au port 8080" << std::endl;
-    
+    std::cout << "Socket attache au port " << port << std::endl;
+
     std::cout << "Mise en ecoute" << std::endl;
 
+    // Listen : met le socket en mode ecoute (128 = backlog max)
     if (listen(serverFd, 128) < 0)
     {
         std::cerr << "ERREUR: Impossible d'ecouter" << std::endl;
         close(serverFd);
         return -1;
     }
+
+    std::cout << "Serveur pret sur le port " << port << std::endl;
+    // Retourne le file descriptor du socket serveur
+    return serverFd;
 }

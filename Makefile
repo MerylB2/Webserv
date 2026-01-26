@@ -49,19 +49,12 @@ CXXFLAGS += $(OS_FLAG)
 SRCDIR = srcs
 OBJDIR = obj
 
-# Source files
+# Source files (only existing files for now)
+# TODO: Add other files as they are implemented
 SRCFILES = main.cpp \
-		   core/Server.cpp \
-		   core/Client.cpp \
-		   core/Socket.cpp \
-		   config/ConfigParser.cpp \
-		   config/ServerConfig.cpp \
-		   config/LocationConfig.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
-		   http/Router.cpp \
-		   cgi/CGIHandler.cpp \
-		   utils/Utils.cpp
+		   http/Router.cpp
 
 # Object files
 SOURCES = $(addprefix $(SRCDIR)/, $(SRCFILES))
