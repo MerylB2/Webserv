@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <vector>
 #include <map>
+#include <poll.h>
 
 class Client;
 class Config;
@@ -19,10 +20,10 @@ class Config;
 class Server
 {
     private :
-        std::vector<int> _serverSockets;
-        std::map<int, Client*> _clients;
-        std::vector<struct pollfd> _pollFds;
-        bool _running;
+        std::vector<int> _serverSockets; //tableau FD sockets
+        std::map<int, Client*> _clients; // FD rattache a un client
+        std::vector<struct pollfd> _pollFds; // cf struct pollfd
+        bool _running; //bool pour arreter proprement
 
         void buildPollFds();
         void handleNewConnections();
