@@ -1,5 +1,5 @@
-#ifndef TYPES_HPP
-#define TYPES_HPP
+#ifndef DICO_HPP
+#define DICO_HPP
 
 #include <string>
 #include <vector>
@@ -34,15 +34,11 @@ struct LocationConfig {
     bool autoindex;  // Si true et pas de fichier index, on liste le contenu du dossier
 					  // Si false et pas de fichier index, on renvoie erreur 404
 
-    std::string cgi_path; // Chemin vers l'interpréteur CGI (ex: "/usr/bin/python3")
-						 // Si défini, les fichiers sont exécutés au lieu d'être renvoyés
-
-    std::string cgi_extension;  // Extension des fichiers CGI (ex: ".py", ".php")
-							   // Seuls les fichiers avec cette extension sont traités en CGI
-
-    std::map<std::string, std::string> cgi_handlers; // Map extension -> interpréteur
-                                                     // Ex: cgi_handlers[".py"] = "/usr/bin/python3"
-                                                     // Ex: cgi_handlers[".php"] = "/usr/bin/php"			
+    std::map<std::string, std::string> cgi_handlers; // CGI handlers par extension
+                                                     // Clé = extension (ex: ".py", ".php")
+                                                     // Valeur = chemin interpréteur (ex: "/usr/bin/python3")
+                                                     // Exemple : cgi_handlers[".py"] = "/usr/bin/python3"
+                                                     //           cgi_handlers[".php"] = "/usr/bin/php-cgi"
 
     std::string upload_dir;  // Dossier où sauvegarder les fichiers uploadés via POST
 
@@ -60,8 +56,6 @@ struct LocationConfig {
 		root_dir(""),
    		index("index.html"),
     	autoindex(false),
-    	cgi_path(""),
-    	cgi_extension(""),
     	upload_dir(""),
 		redirect_url(""),
     	redirect_code(0),
@@ -98,7 +92,7 @@ struct ServerConfig {
 
     std::string root_dir; // Dossier racine par défaut
     					 // Utilisé si une location ne définit pas son propre root
- 
+
     std::map<int, std::string> error_pages; // Pages d'erreur personnalisées
     										// Clé = code d'erreur, Valeur = chemin du fichier HTML
     										// Exemple : error_pages[404] = "/errors/404.html"
@@ -158,7 +152,7 @@ headers["Host"] = "localhost"
 
 struct Request {
 
-    
+
     std::string method; // Méthode HTTP : "GET", "POST" ou "DELETE"
 						// une seule méthode par requête
 
@@ -170,7 +164,7 @@ struct Request {
 							   // Si l'URL est "/search?q=hello", query_string = "q=hello"
 
     std::string version;  // Version HTTP, généralement "HTTP/1.1"
-    
+
     std::map<std::string, std::string> headers; // Headers HTTP clé/valeur
 												// Ex: headers["Host"] = "localhost"
 												// Ex: headers["Content-Length"] = "1234"
@@ -205,33 +199,19 @@ struct Request {
     {}
 
     // Réinitialise pour une nouvelle requête (keep-alive)
-    // Avec keep-alive, un client peut envoyer plusieurs requêtes sur la même connexion :
-    // Connexion TCP établie (socket_fd = 5, server_config = config du port 8080)
-    //│
-    //├── Requête 1 : GET /index.html → Réponse 1
-    //│   reset() ← on vide request/response mais on garde la connexion
-    //│
-    //├── Requête 2 : GET /style.css → Réponse 2
-    //│   reset() ← on vide request/response mais on garde la connexion
-    //│
-    //├── Requête 3 : GET /image.png → Réponse 3
-    //│   reset() ← on vide request/response mais on garde la connexion
-    //│
-    //└── Connexion fermée
-
     void reset() {
-        method.clear();          // Vider la méthode
-        uri.clear();             // Vider l'URI
-        query_string.clear();    // Vider les paramètres
-        version = "HTTP/1.1";    // Remettre la version par défaut
-        headers.clear();         // Vider tous les headers
-        body.clear();            // Vider le body
-        content_length = 0;      // Remettre la longueur du body à 0, pas de body attendu
-        is_chunked = false;      // Pas de mode chunked
-        state = REQUEST_LINE;    // Recommencer le parsing au début par la ligne de requête
-        read_buffer.clear();     // Vider le buffer de lecture
-        body_bytes_received = 0;  // Rien reçu encore
-        error_code = 0;           // Pas d'erreur
+        method.clear();
+        uri.clear();
+        query_string.clear();
+        version = "HTTP/1.1";
+        headers.clear();
+        body.clear();
+        content_length = 0;
+        is_chunked = false;
+        state = REQUEST_LINE;
+        read_buffer.clear();
+        body_bytes_received = 0;
+        error_code = 0;
     }
 };
 
@@ -310,6 +290,35 @@ enum ClientState {
 };
 
 
+/* CGI DATA
+Regroupe les données liées à l'exécution d'un script CGI.
+Utilisé dans ClientData pour gérer l'état du CGI.
+*/
+
+struct CGIData {
+    pid_t pid;              // PID du processus CGI (-1 si pas de CGI)
+    int pipe_in;            // Pipe pour envoyer le body au CGI (stdin du CGI)
+    int pipe_out;           // Pipe pour lire la sortie du CGI (stdout du CGI)
+    std::string buffer;     // Buffer pour accumuler la sortie du CGI
+    time_t start_time;      // Timestamp du lancement (pour timeout)
+
+    CGIData() :
+        pid(-1),
+        pipe_in(-1),
+        pipe_out(-1),
+        start_time(0)
+    {}
+
+    void reset() {
+        pid = -1;
+        pipe_in = -1;
+        pipe_out = -1;
+        buffer.clear();
+        start_time = 0;
+    }
+};
+
+
 /*CLIENT DATA
 
 Contient toutes les infos sur une connexion client.
@@ -330,34 +339,25 @@ struct ClientData {
 
     LocationConfig* location_config; // Pointeur vers la location qui correspond à l'URL demandée
 
-    pid_t cgi_pid; // PID du processus CGI (-1 si pas de CGI en cours)
-
-    int cgi_pipe_out; // Pipe pour lire la sortie du CGI (-1 si pas de CGI)
-
-    std::string cgi_buffer;  // Buffer pour accumuler la sortie du CGI
+    CGIData cgi; // Données du CGI (pid, pipes, buffer, timeout)
 
     time_t last_activity;  // Timestamp de la dernière activité (pour timeout)
 
-    ClientData(): 
+    ClientData():
         socket_fd(-1),
         state(CLIENT_READING),
         server_config(NULL),
         location_config(NULL),
-        cgi_pid(-1),
-        cgi_pipe_out(-1),
         last_activity(0)
     {}
 
     // Réinitialise pour une nouvelle requête (keep-alive)
-    // On garde socket_fd et server_config car ne changent pas entre les requêtes (même connexion et même server)
     void reset() {
         state = CLIENT_READING;
         request.reset();
         response.reset();
         location_config = NULL;
-        cgi_pid = -1;
-        cgi_pipe_out = -1;
-        cgi_buffer.clear();
+        cgi.reset();
         last_activity = time(NULL);
     }
 };
@@ -410,7 +410,8 @@ namespace HttpStatus {
     const int BAD_GATEWAY = 502;             // Erreur avec le CGI
     const int GATEWAY_TIMEOUT = 504;         // CGI trop lent
 
-    // Fonction pour obtenir le message associé à un code
+    // Retourne le message associé au code HTTP
+    // Exemple : getMessage(404) retourne "Not Found"
     inline std::string getMessage(int code) {
         switch (code) {
             case 200: return "OK";
@@ -429,42 +430,64 @@ namespace HttpStatus {
             case 501: return "Not Implemented";
             case 502: return "Bad Gateway";
             case 504: return "Gateway Timeout";
-            default: return "Unknown";
+            default:  return "Unknown";
         }
     }
 }
 
 
 /* MIME TYPES
-Types MIME pour les réponses HTTP.
-Permet de déterminer le Content-Type en fonction de l'extension du fichier.
+Types MIME pour indiquer au navigateur le type de contenu envoyé.
+Le header Content-Type utilise ces valeurs.
+
+Exemple :
+  GET /style.css → Content-Type: text/css
+  GET /image.png → Content-Type: image/png
 */
 
 namespace MimeTypes {
-    // Retourne le type MIME pour une extension donnée
-    inline std::string getType(const std::string& ext) {
-        if (ext == ".html" || ext == ".htm") return "text/html";
-        if (ext == ".css") return "text/css";
-        if (ext == ".js") return "application/javascript";
-        if (ext == ".json") return "application/json";
-        if (ext == ".xml") return "application/xml";
-        if (ext == ".txt") return "text/plain";
-        if (ext == ".png") return "image/png";
-        if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
-        if (ext == ".gif") return "image/gif";
-        if (ext == ".svg") return "image/svg+xml";
-        if (ext == ".ico") return "image/x-icon";
-        if (ext == ".pdf") return "application/pdf";
-        if (ext == ".zip") return "application/zip";
-        if (ext == ".mp3") return "audio/mpeg";
-        if (ext == ".mp4") return "video/mp4";
-        if (ext == ".webm") return "video/webm";
-        if (ext == ".woff") return "font/woff";
-        if (ext == ".woff2") return "font/woff2";
+    // Retourne le type MIME associé à une extension de fichier
+    // Exemple : getType(".html") retourne "text/html"
+    //           getType(".png") retourne "image/png"
+    inline std::string getType(const std::string& extension) {
+        // Text
+        if (extension == ".html" || extension == ".htm") return "text/html";
+        if (extension == ".css")  return "text/css";
+        if (extension == ".js")   return "application/javascript";
+        if (extension == ".json") return "application/json";
+        if (extension == ".xml")  return "application/xml";
+        if (extension == ".txt")  return "text/plain";
+
+        // Images
+        if (extension == ".png")  return "image/png";
+        if (extension == ".jpg" || extension == ".jpeg") return "image/jpeg";
+        if (extension == ".gif")  return "image/gif";
+        if (extension == ".ico")  return "image/x-icon";
+        if (extension == ".svg")  return "image/svg+xml";
+        if (extension == ".webp") return "image/webp";
+
+        // Fonts
+        if (extension == ".woff")  return "font/woff";
+        if (extension == ".woff2") return "font/woff2";
+        if (extension == ".ttf")   return "font/ttf";
+
+        // Documents
+        if (extension == ".pdf")  return "application/pdf";
+        if (extension == ".zip")  return "application/zip";
+        if (extension == ".tar")  return "application/x-tar";
+        if (extension == ".gz")   return "application/gzip";
+
+        // Audio/Video
+        if (extension == ".mp3")  return "audio/mpeg";
+        if (extension == ".mp4")  return "video/mp4";
+        if (extension == ".webm") return "video/webm";
+
+        // Par défaut : binaire générique
         return "application/octet-stream";
     }
 
     // Extrait l'extension d'un chemin de fichier
+    // Exemple : getExtension("/www/style.css") retourne ".css"
     inline std::string getExtension(const std::string& path) {
         size_t pos = path.rfind('.');
         if (pos == std::string::npos)
