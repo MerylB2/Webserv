@@ -16,7 +16,7 @@ Server::~Server()
     for (it = _clients.begin(); it != _clients.end(); ++it)
     {
         close(it->first);
-        delete it->second;
+        //delete it->second;
     }
     _clients.clear();
 }
@@ -60,10 +60,10 @@ int Server::createServerSocket(int port)
 
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(8080);
+    address.sin_port = htons(port);
     if (bind(serverFd, (struct sockaddr*)&address, sizeof(address)) < 0)
     {
-        std::cerr << "ERREUR: Impossible de bind au port" << port << std::endl;
+        std::cerr << "ERREUR: Impossible de bind au port " << port << std::endl;
         close(serverFd);
         return -1;
     }
@@ -184,7 +184,7 @@ void Server::handleClientEvents()
         int fd = _pollFds[i].fd;
 
         //client a ferme ou erreur
-        if (_pollFds[i].revents & (POLL_HUP | POLL_ERR))
+        if (_pollFds[i].revents & (POLLHUP | POLLERR))
         {
             std::cerr << "Client " << fd << " deconnecte" << std::endl;
             toRemove.push_back(fd);
@@ -192,7 +192,7 @@ void Server::handleClientEvents()
         }
 
         //client a quelque chose a lire
-        if (_pollFds[i].revents & POLL_IN)
+        if (_pollFds[i].revents & POLLIN)
         {
             char buffer[1024];
             memset(buffer, 0, sizeof(buffer));
