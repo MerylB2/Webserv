@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: cmetee-b <cmetee-b@student.42.fr>          +#+  +:+       +#+         #
+#    By: joohee <joohee@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2025/01/21 10:00:00 by cmetee-b         ###   ########.fr        #
+#    Updated: 2026/01/28 00:36:56 by joohee           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -53,6 +53,7 @@ OBJDIR = obj
 # TODO: Add other files as they are implemented
 SRCFILES = main.cpp \
 		   core/server.cpp \
+			 config/ConfigParser.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
 		   http/Router.cpp

@@ -1,6 +1,7 @@
 #include "../../includes/core/Server.hpp"
 #include "../../includes/http/Request.hpp"
 #include "../../includes/http/Response.hpp"
+#include "../../includes/http/Router.hpp"  // Ajout pour les routes et les redirections
 
 Server::Server() : _running(false)
 {}
@@ -21,18 +22,19 @@ Server::~Server()
         //delete it->second;
     }
     _clients.clear();
+    _clientsData.clear(); // Ajout pour nettoyer les données clients
 }
 
 //Fonction qui va permet la creation du socket
 int Server::createServerSocket(int port)
 {
-    std::cout << "Creation du socket pour port " << port << std::endl;
+    std::cout << "Création du socket pour port " << port << std::endl;
     
-    // 1. Ccreation du socket : AF_INET = IPv4 / SOCK_STREAM = TCP / 0 = auto
+    // 1. Creation du socket : AF_INET = IPv4 / SOCK_STREAM = TCP / 0 = auto
     int serverFd = socket(AF_INET, SOCK_STREAM, 0);
     if (serverFd < 0)
     {
-        std::cerr << "ERREUR: Impossible de creer le socket" << std::endl;
+        std::cerr << "ERREUR: Impossible de créer le socket" << std::endl;
         return -1;
     }
 
@@ -73,7 +75,7 @@ int Server::createServerSocket(int port)
     // 5. Listen
     if (listen(serverFd, 128) < 0)
     {
-        std::cerr << "ERREUR: Impossible d'ecouter" << std::endl;
+        std::cerr << "ERREUR: Impossible d'écouter" << std::endl;
         close(serverFd);
         return -1;
     }
@@ -82,6 +84,7 @@ int Server::createServerSocket(int port)
     return serverFd;
 }
 
+// Version 1 de setup
 //Fonction qui va permettre de creer chaque socket pour
 //le tableau de ports. Exemple un socket pour le port 8080
 //un socket pour le port 8081 etc.
@@ -94,7 +97,7 @@ void Server::setup(const std::vector<int>& ports)
         int fd = createServerSocket(ports[i]);
         if (fd < 0)
         {
-            std::cerr << "ERREUR: Echec creation socket pour port " << ports[i] << std::endl;
+            std::cerr << "ERREUR: Echec création socket pour port " << ports[i] << std::endl;
             continue;
         }
         _serverSockets.push_back(fd);
@@ -102,10 +105,35 @@ void Server::setup(const std::vector<int>& ports)
 
     if (_serverSockets.empty())
     {
-        std::cerr << "ERREUR: Aucun socket serveur cree !" << std::endl;
+        std::cerr << "ERREUR: Aucun socket serveur créé !" << std::endl;
         return;
     }
-    std::cout << _serverSockets.size() << " socket(s) serveur pret(s)" << std::endl;
+    std::cout << _serverSockets.size() << " socket(s) serveur prêt(s)" << std::endl;
+}
+// Nouvelle version de setup pour implémenter toutes les fonctionnalités de webserv
+void Server::setup(const std::vector<ServerConfig>& configs)
+{
+    // Sauvegarder les configurations pour y accéder plus tard
+    _configs = configs;
+   for (size_t i = 0; i < _configs.size(); i++)
+   {
+        int fd = createServerSocket(_configs[i].listen_port);
+        if (fd < 0)
+        {
+            std::cerr << "ERREUR: Echec création socket pour port " << _configs[i].listen_port << std::endl;
+            continue;
+        }
+        _serverSockets.push_back(fd);
+        
+        _socketToConfig[fd] = &_configs[i]; // Associer ce socket à sa configuration. Quand un client se connecte sur ce socket, on saura quelle config utiliser
+    }
+
+    if (_serverSockets.empty())
+    {
+        std::cerr << "ERREUR: Aucun socket serveur créé !" << std::endl;
+        return;
+    }
+    std::cout << _serverSockets.size() << " socket(s) serveur prêt(s)" << std::endl;
 }
 
 //Cette fonction permet de creer le vecteur de fds
@@ -162,7 +190,7 @@ void Server::handleNewConnections()
             int flags = fcntl(clientFd, F_GETFL, 0);
             fcntl(clientFd, F_SETFL, flags | O_NONBLOCK);
 
-            std::cout << "Nouveau client connecte ! (FD = " << clientFd << ")" << std::endl;
+            std::cout << "Nouveau client connecté ! (FD = " << clientFd << ")" << std::endl;
 
             //TODO : CREER OBJET CLIENT
             //Client* client = new Client(clientFd)
@@ -170,6 +198,12 @@ void Server::handleNewConnections()
             
             // Pour l'instant, juste stocker le FD
             _clients[clientFd] = NULL; //temporaire
+
+            ClientData data; // Initialiser ClientData et on associe le client à la configuration du serveur sur lequel il s'est connecté.
+            data.socket_fd = clientFd;
+            data.server_config = _socketToConfig[_serverSockets[i]];
+            data.last_activity = time(NULL);
+            _clientsData[clientFd] = data;
         }
     }
 }
@@ -188,7 +222,7 @@ void Server::handleClientEvents()
         //client a ferme ou erreur
         if (_pollFds[i].revents & (POLLHUP | POLLERR))
         {
-            std::cerr << "Client " << fd << " deconnecte" << std::endl;
+            std::cerr << "Client " << fd << " déconnecté" << std::endl;
             toRemove.push_back(fd);
             continue;
         }
@@ -207,14 +241,14 @@ void Server::handleClientEvents()
             }
 
             buffer[bytesRead] = '\0';
-            std::cout << "Recu " << bytesRead << " bytes du client " << fd << std::endl;
+            std::cout << "Reçu " << bytesRead << " bytes du client " << fd << std::endl;
 
             // Parser la requete avec RequestParser
             Request req;
             std::string rawData(buffer);
             bool parseOk = RequestParser::parse(req, rawData);
 
-            std::cout << "Methode: " << req.method << std::endl;
+            std::cout << "Méthode: " << req.method << std::endl;
             std::cout << "URI: " << req.uri << std::endl;
             std::cout << "Parse OK: " << (parseOk ? "oui" : "non") << std::endl;
 
@@ -233,34 +267,80 @@ void Server::handleClientEvents()
             }
             else
             {
-                // Requete valide -> reponse 200
-                ResponseBuilder::setStatus(res, 200);
-                ResponseBuilder::setHeader(res, "Content-Type", "text/html");
+                // Ajout pour utiliser le Router si la config existe
+                // Sinon, fallback sur l'ancien comportement (page basique)
+                ServerConfig* config = NULL;
+                if (_clientsData.find(fd) != _clientsData.end())
+                    config = _clientsData[fd].server_config;
 
-                std::string body = "<!DOCTYPE html>\n"
-                    "<html>\n"
-                    "<head><title>Webserv</title></head>\n"
-                    "<body>\n"
-                    "<h1>Bienvenue sur Webserv!</h1>\n"
-                    "<p>Methode: " + req.method + "</p>\n"
-                    "<p>URI: " + req.uri + "</p>\n"
-                    "<p>Version: " + req.version + "</p>\n"
-                    "</body>\n"
-                    "</html>\n";
+                if (config)
+                {
+                    // Config disponible : utiliser le Router
+                    RouteResult result = Router::route(req, config);
 
-                ResponseBuilder::setBody(res, body);
-                ResponseBuilder::build(res);
+                    switch (result.type)
+                    {
+                        case ROUTE_REDIRECT:
+                            // Redirection 301/302 configurée dans le fichier .conf
+                            std::cout << "Redirection " << result.redirect_code << " -> " << result.redirect_url << std::endl;
+                            res = ResponseBuilder::makeRedirect(result.redirect_code, result.redirect_url);
+                            break;
+
+                        case ROUTE_FILE:
+                            // Servir un fichier statique
+                            ResponseBuilder::setStatus(res, 200);
+                            ResponseBuilder::setBodyFromFile(res, result.filepath);
+                            ResponseBuilder::build(res);
+                            break;
+
+                        case ROUTE_DIRECTORY:
+                            // TODO: autoindex (listing du répertoire)
+                            res = ResponseBuilder::makeError(403);
+                            break;
+
+                        case ROUTE_CGI:
+                            // TODO: CGI handler (fork + execve)
+                            res = ResponseBuilder::makeError(501);
+                            break;
+
+                        case ROUTE_ERROR:
+                        default:
+                            res = ResponseBuilder::makeError(result.error_code);
+                            break;
+                    }
+                }
+                else
+                {
+                    // Pas de config : ancien comportement (réponse basique)
+                    // Requete valide -> reponse 200
+                    ResponseBuilder::setStatus(res, 200);
+                    ResponseBuilder::setHeader(res, "Content-Type", "text/html");
+
+                    std::string body = "<!DOCTYPE html>\n"
+                        "<html>\n"
+                        "<head><title>Webserv</title></head>\n"
+                        "<body>\n"
+                        "<h1>Bienvenue sur Webserv!</h1>\n"
+                        "<p>Methode: " + req.method + "</p>\n"
+                        "<p>URI: " + req.uri + "</p>\n"
+                        "<p>Version: " + req.version + "</p>\n"
+                        "</body>\n"
+                        "</html>\n";
+
+                    ResponseBuilder::setBody(res, body);
+                    ResponseBuilder::build(res);
+                }
             }
 
             // Envoyer la reponse immediatement
-            std::cout << "Envoi reponse: " << res.status_code << " " << res.status_message << std::endl;
+            std::cout << "Envoi réponse: " << res.status_code << " " << res.status_message << std::endl;
 
             int bytesSent = send(fd, res.send_buffer.c_str(), res.send_buffer.size(), 0);
 
             if (bytesSent < 0)
                 std::cerr << "ERREUR: send() failed" << std::endl;
             else
-                std::cout << "Envoye " << bytesSent << " bytes" << std::endl;
+                std::cout << "Envoyé " << bytesSent << " bytes" << std::endl;
 
             // Fermer la connexion (pas de keep-alive pour l'instant)
             toRemove.push_back(fd);
@@ -274,6 +354,7 @@ void Server::handleClientEvents()
         close(fd);
         // delete _clients[fd];  // Quand Client existera
         _clients.erase(fd);
+        _clientsData.erase(fd);  // Ajout pour nettoyer aussi ClientData
     }
 }
 
@@ -322,7 +403,7 @@ void Server::run()
         checkTimeouts();
     }
 
-    std::cout << "Serveur arrete proprement" << std::endl;
+    std::cout << "Serveur arrêté proprement" << std::endl;
 }
 
 void Server::stop()
