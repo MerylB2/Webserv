@@ -204,15 +204,15 @@ Webserv/
 │       └── Router.hpp              # Routing et matching
 │
 ├── srcs/
-│   ├── main.cpp                    # Point d'entrée (68 lignes)
+│   ├── main.cpp                    # Point d'entrée
 │   ├── core/
-│   │   └── server.cpp              # Implémentation serveur (330 lignes)
+│   │   └── server.cpp              # Implémentation serveur
 │   ├── config/
-│   │   └── ConfigParser.cpp        # Implémentation parser (412 lignes)
+│   │   └── ConfigParser.cpp        # Implémentation parser
 │   └── http/
-│       ├── Request.cpp             # Implémentation parsing (199 lignes)
-│       ├── Response.cpp            # Implémentation réponse (126 lignes)
-│       └── Router.cpp              # Implémentation routing (178 lignes)
+│       ├── Request.cpp             # Implémentation parsing
+│       ├── Response.cpp            # Implémentation réponse
+│       └── Router.cpp              # Implémentation routing
 │
 ├── www/
 │   └── errors/                     # Pages d'erreur HTML
@@ -224,7 +224,7 @@ Webserv/
 │       └── 500.html
 │
 ├── tests/
-│   ├── test_http.cpp               # Tests unitaires HTTP (6475 lignes)
+│   ├── test_http.cpp               # Tests unitaires HTTP 
 │   └── configs/                    # 15 fichiers de test config
 │       ├── test1_minimal.conf
 │       ├── test2_complete.conf
@@ -232,14 +232,13 @@ Webserv/
 │       ├── ... (jusqu'à test15)
 │
 └── Docs/
-    ├── en.subject.pdf              # Sujet officiel (v23.1)
+    ├── en.subject.pdf              # Sujet officiel
     ├── ARCHITECTURE.md             # Architecture détaillée
     ├── GIT_FLOW.md                 # Workflow Git
     ├── README.md                   # Description rapide
     ├── exemple_struc.md            # Exemple de structure
     └── PROGRESS.md                 # Ce fichier
 
-TOTAL: ~1812 lignes de code C++
 ```
 
 ---
@@ -433,29 +432,13 @@ Personne 3: poll() + multi-clients ✅ FAIT
 
 ### Planning suggéré
 
-| Semaine | Personne 1 | Personne 2 | Personne 3 |
+| etapes | Personne 1 | Personne 2 | Personne 3 |
 |---------|------------|------------|------------|
-| **S1** | Intégrer config | Préparer GET | **poll() + clients** |
-| **S2** | FileHandler | GET + POST | Tester avec P1/P2 |
-| **S3** | Autoindex | DELETE + redirects | CGI base |
-| **S4** | Tests | Error pages | CGI complet |
-| **S5** | Review | Review | Timeouts |
-| **S6** | Stress tests ensemble | Debug ensemble | Debug ensemble |
+| **1** | Intégrer config | Préparer GET | **poll() + clients** |
+| **2** | FileHandler | GET + POST | Tester avec P1/P2 |
+| **3** | Autoindex | DELETE + redirects | CGI base |
+| **4** | Tests | Error pages | CGI complet |
+| **5** | Review | Review | Timeouts |
+| **6** | Stress tests ensemble | Debug ensemble | Debug ensemble |
 
 ---
-
-## Historique des mises à jour
-
-| Date | Modification |
-|------|--------------|
-| 27/01/2025 | Création initiale du document |
-| 27/01/2025 | Ajout includes Request/Response dans server.cpp |
-| 27/01/2025 | Correction variables et portée dans server.cpp |
-| 27/01/2025 | Mise à jour complète avec analyse du sujet v23.1 |
-| 27/01/2025 | Ajout répartition du travail par personne |
-| 27/01/2025 | Correction: poll() déjà implémenté dans server.cpp |
-| 27/01/2025 | Vérification complète de la structure du projet |
-
----
-
-*Dernière mise à jour : 27 janvier 2025*
