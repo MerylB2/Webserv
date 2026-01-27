@@ -39,6 +39,8 @@ namespace ResponseBuilder {
     // Réponses pré-construites
     Response makeError(int code);
     Response makeRedirect(int code, const std::string& location);
+
+    // autres utilitairesd de reponses...
 }
 
 #endif

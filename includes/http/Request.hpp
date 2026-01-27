@@ -31,6 +31,9 @@ namespace RequestParser {
 
     // Parse le body en mode chunked
     bool parseChunkedBody(Request& req);
+
+    // autres utilitaires de parsing...
+
 }
 
 #endif

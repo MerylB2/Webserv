@@ -52,6 +52,7 @@ OBJDIR = obj
 # Source files (only existing files for now)
 # TODO: Add other files as they are implemented
 SRCFILES = main.cpp \
+		   core/server.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
 		   http/Router.cpp

@@ -59,6 +59,14 @@ namespace Router {
 
     // Vérifie si c'est un fichier CGI
     bool isCGI(const std::string& path, const LocationConfig* loc);
+
+    // Gère l'autoindex pour un répertoire
+    bool handleAutoindex(const std::string& dirpath, Response& response);
+
+    // Génère une page d'erreur personnalisée
+    void generateErrorPage(int error_code, const ServerConfig* server, Response& response);
+
+    // autres utilitaires de routing...
 }
 
 #endif
