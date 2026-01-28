@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: cmetee-b <cmetee-b@student.42.fr>          +#+  +:+       +#+         #
+#    By: chamebar <chamebar@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2025/01/21 10:00:00 by cmetee-b         ###   ########.fr        #
+#    Updated: 2026/01/28 10:31:19 by chamebar         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -35,7 +35,7 @@ INCLUDES = -I./includes -I./includes/core -I./includes/http -I./includes/config 
 ifeq ($(UNAME_S), Linux)
     OS_FLAG = -D__LINUX__
     # Linux uses epoll
-    POLL_METHOD = epoll
+    POLL_METHOD = poll
 endif
 ifeq ($(UNAME_S), Darwin)
     OS_FLAG = -D__MACOS__
