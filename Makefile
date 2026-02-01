@@ -6,7 +6,7 @@
 #    By: joohee <joohee@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2026/01/28 00:36:56 by joohee           ###   ########.fr        #
+#    Updated: 2026/01/28 11:03:02 by joohee           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -56,7 +56,8 @@ SRCFILES = main.cpp \
 			 config/ConfigParser.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
-		   http/Router.cpp
+		   http/Router.cpp \
+			 cgi/CGIHandler.cpp
 
 # Object files
 SOURCES = $(addprefix $(SRCDIR)/, $(SRCFILES))

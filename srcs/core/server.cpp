@@ -1,7 +1,8 @@
 #include "../../includes/core/Server.hpp"
 #include "../../includes/http/Request.hpp"
 #include "../../includes/http/Response.hpp"
-#include "../../includes/http/Router.hpp"  // Ajout pour les routes et les redirections
+#include "../../includes/http/Router.hpp"  // Ajout pour les redirections
+#include "../../includes/cgi/CGIHandler.hpp"
 
 Server::Server() : _running(false)
 {}
@@ -299,8 +300,8 @@ void Server::handleClientEvents()
                             break;
 
                         case ROUTE_CGI:
-                            // TODO: CGI handler (fork + execve)
-                            res = ResponseBuilder::makeError(501);
+                            std::cout << "CGI: " << result.filepath << std::endl;
+                            res = executeCGI(req, result.filepath, result.cgi_interpreter, config);
                             break;
 
                         case ROUTE_ERROR:
