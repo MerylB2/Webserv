@@ -54,6 +54,7 @@ class Client
         void updateActivity();
 
         //I/O
+        int readData();
 
         //Lifecycle
 };

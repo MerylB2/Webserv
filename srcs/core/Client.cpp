@@ -1,6 +1,8 @@
 #include "Client.hpp"
 #include "Server.hpp"
 #include "Dico.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
 
 // Voici ce que la structure ClientData contient 
 
@@ -76,4 +78,39 @@ void Client::setState(ClientState state)
 void Client::updateActivity()
 {
     _data.last_activity = time(NULL);
+}
+
+int Client::readData()
+{
+    //client a quelque chose a lire
+    
+    char buffer[4096];
+    memset(buffer, 0, sizeof(buffer));
+
+    int bytesRead = recv(_data.socket_fd, buffer, sizeof(buffer), 0);
+    if (bytesRead < 0)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return 0;
+        std::cout << "ERROR: recv() failed pour fd " << _data.socket_fd << std::endl;
+        return -1;
+    }
+
+    if (bytesRead == 0)
+    {
+        std::cout << "Client fd " << _data.socket_fd << " a ferme la connexion" << std::endl;
+        return -1;
+    }
+    std::cout << "Recu " << bytesRead << " bytes du client " << _data.socket_fd << std::endl;
+
+    // Parser la requete avec RequestParser
+    std::string rawData(buffer, bytesRead);
+    _data.request.read_buffer += rawData;
+    RequestParser::parse(_data.request, _data.request.read_buffer);
+
+    //Manque plusieurs etapes ici
+
+    //Time mis a jour
+    Client::updateActivity();
+    return 0;
 }
