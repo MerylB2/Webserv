@@ -38,7 +38,7 @@ class Client
         int _serverPort;
     public :
         //Constructeur
-        Client(int fd, int _serverPort);
+        Client(int fd, int serverPort);
         ~Client();
 
         //Getters
@@ -49,6 +49,9 @@ class Client
         
 
         //Setters
+
+        void setState(ClientState state);
+        void updateActivity();
 
         //I/O
 
