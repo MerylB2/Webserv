@@ -83,34 +83,51 @@ void Client::updateActivity()
 int Client::readData()
 {
     //client a quelque chose a lire
-    
+    //1. Creation d'un buffer temporaire
     char buffer[4096];
     memset(buffer, 0, sizeof(buffer));
 
+    //2. Lire depuis socket
     int bytesRead = recv(_data.socket_fd, buffer, sizeof(buffer), 0);
+    
+    //3. Gestion des erreurs
     if (bytesRead < 0)
     {
+        //cas ou il n'y a pas de donnees
         if (errno == EAGAIN || errno == EWOULDBLOCK)
             return 0;
+        //vraie erreur
         std::cout << "ERROR: recv() failed pour fd " << _data.socket_fd << std::endl;
         return -1;
     }
-
+    //Fermeture de la connexion par le client
     if (bytesRead == 0)
     {
         std::cout << "Client fd " << _data.socket_fd << " a ferme la connexion" << std::endl;
         return -1;
     }
-    std::cout << "Recu " << bytesRead << " bytes du client " << _data.socket_fd << std::endl;
 
-    // Parser la requete avec RequestParser
+    //4. Accumuler dans le buffer du client pour ne rien
+    //perdre entre les differentes lecture
+
     std::string rawData(buffer, bytesRead);
     _data.request.read_buffer += rawData;
+
+    std::cout << bytesRead << "bytes lu du client FD = " << _data.socket_fd << std::endl;
+
+    //5. Parser la requete (avec _data.request)
     RequestParser::parse(_data.request, _data.request.read_buffer);
 
-    //Manque plusieurs etapes ici
+    //6. Verification erreur de parsing
+    if (_data.request.error_code != 0)
+    {
+        std::cerr << "ERREUR: parsing HTTP failed (code " << _data.request.error_code << ")" << std::endl;
+        setState(CLIENT_ERROR);
+        return -1; 
+    }
+    //7. Time mis a jour
+    updateActivity();
 
-    //Time mis a jour
-    Client::updateActivity();
-    return 0;
+    //8. Retourner le nombre de bytes lus
+    return bytesRead;
 }

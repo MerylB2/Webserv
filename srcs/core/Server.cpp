@@ -1,6 +1,7 @@
 #include "../../includes/core/Server.hpp"
 #include "../../includes/http/Request.hpp"
 #include "../../includes/http/Response.hpp"
+#include "Client.hpp"
 
 Server::Server() : _running(false)
 {}
@@ -164,12 +165,9 @@ void Server::handleNewConnections()
 
             std::cout << "Nouveau client connecte ! (FD = " << clientFd << ")" << std::endl;
 
-            //TODO : CREER OBJET CLIENT
-            //Client* client = new Client(clientFd)
-            // _clients[clientFd] = client;
-            
-            // Pour l'instant, juste stocker le FD
-            _clients[clientFd] = NULL; //temporaire
+            //CREER OBJET CLIENT
+            Client* client = new Client(clientFd, _serverSockets[i]);
+             _clients[clientFd] = client;
         }
     }
 }
@@ -185,7 +183,13 @@ void Server::handleClientEvents()
     {
         int fd = _pollFds[i].fd;
 
-        //client a ferme ou erreur
+        //Recuperation du client
+        Client* client = _clients[fd];
+
+        if (!client)
+            continue;
+
+        //client deconnecte ou erreur
         if (_pollFds[i].revents & (POLLHUP | POLLERR))
         {
             std::cerr << "Client " << fd << " deconnecte" << std::endl;
@@ -193,69 +197,60 @@ void Server::handleClientEvents()
             continue;
         }
 
-        //client a quelque chose a lire
+        //client a des donnees a lire
         if (_pollFds[i].revents & POLLIN)
         {
-            char buffer[4096];
-            memset(buffer, 0, sizeof(buffer));
-
-            int bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
-            if (bytesRead <= 0)
+            int result = client->readData();
+            
+            if (result < 0)
             {
+                std::cout << "Client " << fd << " erreur lecture" << std::endl;
                 toRemove.push_back(fd);
                 continue;
             }
 
-            buffer[bytesRead] = '\0';
-            std::cout << "Recu " << bytesRead << " bytes du client " << fd << std::endl;
-
-            // Parser la requete avec RequestParser
-            Request req;
-            std::string rawData(buffer);
-            bool parseOk = RequestParser::parse(req, rawData);
-
-            std::cout << "Methode: " << req.method << std::endl;
-            std::cout << "URI: " << req.uri << std::endl;
-            std::cout << "Parse OK: " << (parseOk ? "oui" : "non") << std::endl;
-
-            // Construire la reponse avec ResponseBuilder
-            Response res;
-
-            if (!parseOk || req.state == ERROR)
+            if (client->getRequest()->state == COMPLETE)
             {
-                // Requete invalide -> erreur 400
-                res = ResponseBuilder::makeError(400);
-            }
-            else if (req.method != "GET" && req.method != "POST" && req.method != "DELETE")
-            {
-                // Methode non supportee -> erreur 405
-                res = ResponseBuilder::makeError(405);
-            }
-            else
-            {
-                // Requete valide -> reponse 200
-                ResponseBuilder::setStatus(res, 200);
-                ResponseBuilder::setHeader(res, "Content-Type", "text/html");
+                std::cout << "Requete prete a traiter" << std::endl;
 
-                std::string body = "<!DOCTYPE html>\n"
-                    "<html>\n"
-                    "<head><title>Webserv</title></head>\n"
-                    "<body>\n"
-                    "<h1>Bienvenue sur Webserv!</h1>\n"
-                    "<p>Methode: " + req.method + "</p>\n"
-                    "<p>URI: " + req.uri + "</p>\n"
-                    "<p>Version: " + req.version + "</p>\n"
-                    "</body>\n"
-                    "</html>\n";
+                Request* req = client->getRequest();
+                Response* res = client->getResponse();
 
-                ResponseBuilder::setBody(res, body);
-                ResponseBuilder::build(res);
-            }
+                if (req->error_code != 0 || req->state == ERROR)
+                {
+                    // Requete invalide -> erreur 400
+                    *res = ResponseBuilder::makeError(400);
+                }
+                else if (req->method != "GET" && req->method != "POST" && req->method != "DELETE")
+                {
+                    // Methode non supportee -> erreur 405
+                    *res = ResponseBuilder::makeError(405);
+                }
+                else
+                {
+                    // Requete valide -> reponse 200
+                    ResponseBuilder::setStatus(*res, 200);
+                    ResponseBuilder::setHeader(*res, "Content-Type", "text/html");
+
+                    std::string body = "<!DOCTYPE html>\n"
+                        "<html>\n"
+                        "<head><title>Webserv</title></head>\n"
+                        "<body>\n"
+                        "<h1>Bienvenue sur Webserv!</h1>\n"
+                        "<p>Methode: " + req->method + "</p>\n"
+                        "<p>URI: " + req->uri + "</p>\n"
+                        "<p>Version: " + req->version + "</p>\n"
+                        "</body>\n"
+                        "</html>\n";
+
+                    ResponseBuilder::setBody(*res, body);
+                    ResponseBuilder::build(*res);
+                }
 
             // Envoyer la reponse immediatement
-            std::cout << "Envoi reponse: " << res.status_code << " " << res.status_message << std::endl;
+            std::cout << "Envoi reponse: " << res->status_code << " " << res->status_message << std::endl;
 
-            int bytesSent = send(fd, res.send_buffer.c_str(), res.send_buffer.size(), 0);
+            int bytesSent = send(fd, res->send_buffer.c_str(), res->send_buffer.size(), 0);
 
             if (bytesSent < 0)
                 std::cerr << "ERREUR: send() failed" << std::endl;
@@ -264,6 +259,7 @@ void Server::handleClientEvents()
 
             // Fermer la connexion (pas de keep-alive pour l'instant)
             toRemove.push_back(fd);
+            }
         }
     }
 
@@ -272,7 +268,7 @@ void Server::handleClientEvents()
     {
         int fd = toRemove[i];
         close(fd);
-        // delete _clients[fd];  // Quand Client existera
+        delete _clients[fd];
         _clients.erase(fd);
     }
 }

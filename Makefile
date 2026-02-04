@@ -6,7 +6,7 @@
 #    By: chamebar <chamebar@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2026/01/28 10:31:19 by chamebar         ###   ########.fr        #
+#    Updated: 2026/02/04 09:34:20 by chamebar         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -52,10 +52,11 @@ OBJDIR = obj
 # Source files (only existing files for now)
 # TODO: Add other files as they are implemented
 SRCFILES = main.cpp \
-		   core/server.cpp \
+		   core/Server.cpp \
+		   core/Client.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
-		   http/Router.cpp
+		   http/Router.cpp \
 
 # Object files
 SOURCES = $(addprefix $(SRCDIR)/, $(SRCFILES))
