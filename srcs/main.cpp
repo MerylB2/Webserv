@@ -1,4 +1,6 @@
 #include "../includes/core/Server.hpp"
+#include "ConfigParser.hpp"
+#include "Dico.hpp"
 
 Server* g_server = NULL;
 
@@ -11,28 +13,30 @@ void signalHandler(int signum)
         g_server->stop();
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc != 2)
+    {
+        std::cout << "Usage : ./webserv config_file" << std::endl;
+        return -1;
+    }
     //Installer les signaux
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
+
+    ConfigParser config;
+    config.parse(argv[1]);
+    std::vector<ServerConfig> servers = config.getServers();
 
     //Creer le serveur
     Server server;
     g_server = &server;
 
-    //Configurer les ports (plusieurs ports possibles)
-    std::vector<int> ports;
-    ports.push_back(8080);
-    ports.push_back(8081);
-    ports.push_back(8082);
-
     //Setup
-    server.setup(ports);
+    server.setup(servers);
 
     //Run
     server.run();
-
     return 0;
 }
 

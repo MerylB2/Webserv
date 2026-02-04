@@ -86,16 +86,19 @@ int Server::createServerSocket(int port)
 //Fonction qui va permettre de creer chaque socket pour
 //le tableau de ports. Exemple un socket pour le port 8080
 //un socket pour le port 8081 etc.
-void Server::setup(const std::vector<int>& ports)
+void Server::setup(const std::vector<ServerConfig>& config)
 {
-    //Creer un socket pour chaque port
+    //Stocker la config
+    _config = config;
 
-    for (size_t i = 0; i < ports.size(); i++)
+    //Creer un socket pour chaque port
+    for (size_t i = 0; i < _config.size(); i++)
     {
-        int fd = createServerSocket(ports[i]);
+        int port = _config[i].listen_port;
+        int fd = createServerSocket(port);
         if (fd < 0)
         {
-            std::cerr << "ERREUR: Echec creation socket pour port " << ports[i] << std::endl;
+            std::cerr << "ERREUR: Echec creation socket pour port " << port << std::endl;
             continue;
         }
         _serverSockets.push_back(fd);

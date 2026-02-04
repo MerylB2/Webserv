@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <poll.h>
+#include "Dico.hpp"
 
 class Client;
 class Config;
@@ -20,6 +21,7 @@ class Config;
 class Server
 {
     private :
+        std::vector<ServerConfig> _config;
         std::vector<int> _serverSockets; //tableau FD sockets
         std::map<int, Client*> _clients; // FD rattache a un client
         std::vector<struct pollfd> _pollFds; // cf struct pollfd
@@ -34,7 +36,7 @@ class Server
         ~Server();
 
         int createServerSocket(int port);
-        void setup(const std::vector<int>& ports);
+        void setup(const std::vector<ServerConfig>& config);
 
         void run();
         void stop();
