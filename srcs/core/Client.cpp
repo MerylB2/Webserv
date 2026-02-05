@@ -68,6 +68,16 @@ Response* Client::getResponse()
     return &_data.response;
 }
 
+int Client::getServerPort() const
+{
+    return _serverPort;
+}
+
+time_t Client::getLastActivity() const
+{
+    return _data.last_activity;
+}
+
 // SETTERS
 
 void Client::setState(ClientState state)
@@ -104,7 +114,7 @@ int Client::readData()
     if (bytesRead == 0)
     {
         std::cout << "Client fd " << _data.socket_fd << " a ferme la connexion" << std::endl;
-        return -1;
+        return 0;
     }
 
     //4. Accumuler dans le buffer du client pour ne rien
@@ -130,4 +140,47 @@ int Client::readData()
 
     //8. Retourner le nombre de bytes lus
     return bytesRead;
+}
+
+int Client::writeData()
+{
+    //1. Construire reponse si pas encore fait
+    if (!_data.response.is_ready)
+    {
+        ResponseBuilder::build(_data.response);
+        _data.response.is_ready = true;
+    }
+
+    //2. Envoyer un morceau
+    const char* data = _data.response.send_buffer.c_str() + _data.response.bytes_sent;
+    size_t reste = _data.response.send_buffer.size() - _data.response.bytes_sent;
+
+    int n = send(_data.socket_fd, data, reste, 0);
+
+    if (n > 0)
+    {
+        _data.response.bytes_sent += n;
+        if (_data.response.bytes_sent >= _data.response.send_buffer.size())
+            _data.response.is_complete = true;
+    }
+
+    return n;
+}
+
+bool Client::shouldKeepAlive() const
+{
+    std::map<std::string, std::string>::const_iterator it = _data.request.headers.find("Connection");
+
+    if (it == _data.request.headers.end())
+        return false;
+    
+    return (it->second == "keep-alive");
+}
+
+void Client::reset()
+{
+    //Reinitialisation pour une nouvelle requete
+    _data.request.reset();
+    _data.response.reset();
+    _data.state = CLIENT_READING;
 }

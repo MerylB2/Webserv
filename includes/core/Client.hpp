@@ -46,17 +46,21 @@ class Client
         ClientState getClientState() const;
         Request* getRequest();
         Response* getResponse();
+        int getServerPort() const;
+        time_t getLastActivity() const;
         
 
         //Setters
-
         void setState(ClientState state);
         void updateActivity();
 
         //I/O
         int readData();
+        int writeData();
 
         //Lifecycle
+        void reset();
+        bool shouldKeepAlive() const;
 };
 
 #endif

@@ -212,6 +212,13 @@ void Server::handleClientEvents()
                 continue;
             }
 
+            if (result == 0)
+            {
+                std::cout << "Client " << fd << " termine normalement" << std::endl;
+                toRemove.push_back(fd);
+                continue;
+            }
+
             if (client->getRequest()->state == COMPLETE)
             {
                 std::cout << "Requete prete a traiter" << std::endl;
@@ -247,21 +254,41 @@ void Server::handleClientEvents()
                         "</html>\n";
 
                     ResponseBuilder::setBody(*res, body);
-                    ResponseBuilder::build(*res);
                 }
 
-            // Envoyer la reponse immediatement
-            std::cout << "Envoi reponse: " << res->status_code << " " << res->status_message << std::endl;
+                client->setState(CLIENT_WRITING);
+            }
+        }
 
-            int bytesSent = send(fd, res->send_buffer.c_str(), res->send_buffer.size(), 0);
+        if (_pollFds[i].revents & POLLOUT)
+        {
+            if (client->getClientState() == CLIENT_WRITING)
+            {
+                int result = client->writeData();
 
-            if (bytesSent < 0)
-                std::cerr << "ERREUR: send() failed" << std::endl;
-            else
-                std::cout << "Envoye " << bytesSent << " bytes" << std::endl;
+                if (result < 0)
+                {
+                    std::cout << "Client " << fd << " erreur d'ecritue" << std::endl;
+                    toRemove.push_back(fd);
+                    continue;
+                }
 
-            // Fermer la connexion (pas de keep-alive pour l'instant)
-            toRemove.push_back(fd);
+                //Faut-il tout envoyer ?
+                if (client->getResponse()->is_complete)
+                {
+                    std::cout << "Reponse completement envoye" << std::endl;
+                    if (client->shouldKeepAlive())
+                    {
+                        std::cout << "Keep-alive : pret pour nouvelle requete" << std::endl;
+                        client->reset();
+                    }
+                    else
+                    {
+                        std::cout << "Client " << fd << " termine" << std::endl;
+                        toRemove.push_back(fd);
+                    }
+                }
+                
             }
         }
     }
@@ -279,7 +306,31 @@ void Server::handleClientEvents()
 
 void Server::checkTimeouts()
 {
-    // TODO: Implémenter quand Client aura lastActivity
+    time_t now = time(NULL);
+
+    std::vector<int> toRemove;
+
+    for (std::map<int, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        Client* client = it->second;
+
+        double diff = difftime(now, client->getLastActivity());
+
+        if (diff > 60)
+        {
+            std::cout << "Client " << it->first << " timeout (" << diff << "s d'inactivite)" << std::endl;
+            toRemove.push_back(it->first);
+        }
+    }
+
+    // Nettoyage des clients timeout
+    for (size_t i = 0; i < toRemove.size(); i++)
+    {
+        int fd = toRemove[i];
+        close(fd);
+        delete(_clients[fd]);
+        _clients.erase(fd);
+    }
 }
 
 //Fonction generale qui appelle les autres fonctions

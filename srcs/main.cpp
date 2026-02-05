@@ -8,7 +8,7 @@ Server* g_server = NULL;
 void signalHandler(int signum)
 {
     (void)signum;
-    std::cout << "\n Signal recu, arret du serveur" << std::endl;
+    std::cout << "\nSignal recu, arret du serveur" << std::endl;
     if (g_server)
         g_server->stop();
 }
