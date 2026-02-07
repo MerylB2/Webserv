@@ -1,5 +1,11 @@
 #include "../../includes/http/Router.hpp"
+#include "../../includes/http/Response.hpp"
 #include <sys/stat.h>
+#include <dirent.h>
+#include <iostream>
+#include <sstream>
+#include <algorithm>
+#include <ctime>
 
 namespace Router {
 
@@ -31,18 +37,35 @@ RouteResult route(const Request& request, ServerConfig* server) {
         return result;
     }
 
-    // 4. Résoudre le chemin du fichier
+    // 4. Dispatcher selon la methode HTTP
+    if (request.method == "GET")
+        return routeGET(request, loc);
+    else if (request.method == "POST")
+        return routePOST(request, loc);
+    else if (request.method == "DELETE")
+        return routeDELETE(request, loc);
+
+    // Methode non geree
+    result.type = ROUTE_ERROR;
+    result.error_code = HttpStatus::METHOD_NOT_ALLOWED;
+    return result;
+}
+
+/* ========== GET : servir fichier / repertoire / CGI ========== */
+
+RouteResult routeGET(const Request& request, LocationConfig* loc) {
+    RouteResult result;
     std::string filepath = resolvePath(request.uri, loc);
     result.filepath = filepath;
 
-    // 5. Vérifier si c'est un CGI
+    // CGI ?
     if (isCGI(filepath, loc)) {
         result.type = ROUTE_CGI;
         result.cgi_interpreter = getCGIInterpreter(filepath, loc);
         return result;
     }
 
-    // 6. Vérifier si le fichier/répertoire existe
+    // Repertoire ?
     if (isDirectory(filepath)) {
         std::string index_path = filepath;
         if (index_path[index_path.size() - 1] != '/')
@@ -58,13 +81,74 @@ RouteResult route(const Request& request, ServerConfig* server) {
             result.type = ROUTE_ERROR;
             result.error_code = HttpStatus::FORBIDDEN;
         }
-    } else if (fileExists(filepath)) {
-        result.type = ROUTE_FILE;
-    } else {
-        result.type = ROUTE_ERROR;
-        result.error_code = HttpStatus::NOT_FOUND;
+        return result;
     }
 
+    // Fichier ?
+    if (fileExists(filepath)) {
+        result.type = ROUTE_FILE;
+        return result;
+    }
+
+    result.type = ROUTE_ERROR;
+    result.error_code = HttpStatus::NOT_FOUND;
+    return result;
+}
+
+/* ========== POST : upload ou CGI ========== */
+
+RouteResult routePOST(const Request& request, LocationConfig* loc) {
+    RouteResult result;
+    std::string filepath = resolvePath(request.uri, loc);
+    result.filepath = filepath;
+
+    // CGI en priorite (ex: script.py qui recoit un POST)
+    if (isCGI(filepath, loc)) {
+        result.type = ROUTE_CGI;
+        result.cgi_interpreter = getCGIInterpreter(filepath, loc);
+        return result;
+    }
+
+    // Upload si la location a un upload_dir
+    if (!loc->upload_dir.empty()) {
+        // Extraire le nom du fichier depuis l'URI
+        std::string filename;
+        size_t lastSlash = request.uri.rfind('/');
+        if (lastSlash != std::string::npos && lastSlash + 1 < request.uri.size())
+            filename = request.uri.substr(lastSlash + 1);
+        else
+            filename = "upload";
+
+        std::string uploadPath = loc->upload_dir;
+        if (!uploadPath.empty() && uploadPath[uploadPath.size() - 1] != '/')
+            uploadPath += "/";
+        uploadPath += filename;
+
+        result.type = ROUTE_UPLOAD;
+        result.upload_path = uploadPath;
+        return result;
+    }
+
+    // Pas de CGI ni d'upload_dir -> erreur
+    result.type = ROUTE_ERROR;
+    result.error_code = HttpStatus::FORBIDDEN;
+    return result;
+}
+
+/* ========== DELETE : supprimer un fichier ========== */
+
+RouteResult routeDELETE(const Request& request, LocationConfig* loc) {
+    RouteResult result;
+    std::string filepath = resolvePath(request.uri, loc);
+    result.filepath = filepath;
+
+    if (fileExists(filepath)) {
+        result.type = ROUTE_DELETE;
+        return result;
+    }
+
+    result.type = ROUTE_ERROR;
+    result.error_code = HttpStatus::NOT_FOUND;
     return result;
 }
 

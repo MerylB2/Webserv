@@ -58,6 +58,7 @@ SRCFILES = main.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
 		   http/Router.cpp \
+		   http/Autoindex.cpp \
 		   cgi/CGIHandler.cpp
 
 # Object files

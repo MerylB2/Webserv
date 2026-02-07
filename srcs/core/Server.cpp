@@ -4,6 +4,9 @@
 #include "../../includes/http/Router.hpp"
 #include "../../includes/cgi/CGIHandler.hpp"
 #include "Client.hpp"
+#include <fstream>
+#include <cstdio>
+#include <sstream>
 
 Server::Server() : _running(false)
 {}
@@ -238,32 +241,107 @@ void Server::handleClientEvents()
 
                 if (req->error_code != 0 || req->state == ERROR)
                 {
-                    // Requete invalide -> erreur 400
-                    *res = ResponseBuilder::makeError(400);
-                }
-                else if (req->method != "GET" && req->method != "POST" && req->method != "DELETE")
-                {
-                    // Methode non supportee -> erreur 405
-                    *res = ResponseBuilder::makeError(405);
+                    *res = ResponseBuilder::makeError(req->error_code ? req->error_code : 400);
                 }
                 else
                 {
-                    // Requete valide -> reponse 200
-                    ResponseBuilder::setStatus(*res, 200);
-                    ResponseBuilder::setHeader(*res, "Content-Type", "text/html");
+                    // Recuperer la config du serveur pour ce client
+                    ServerConfig* config = NULL;
+                    if (_clientsData.find(fd) != _clientsData.end())
+                        config = _clientsData[fd].server_config;
 
-                    std::string body = "<!DOCTYPE html>\n"
-                        "<html>\n"
-                        "<head><title>Webserv</title></head>\n"
-                        "<body>\n"
-                        "<h1>Bienvenue sur Webserv!</h1>\n"
-                        "<p>Methode: " + req->method + "</p>\n"
-                        "<p>URI: " + req->uri + "</p>\n"
-                        "<p>Version: " + req->version + "</p>\n"
-                        "</body>\n"
-                        "</html>\n";
+                    if (!config)
+                    {
+                        *res = ResponseBuilder::makeError(500);
+                    }
+                    else
+                    {
+                        RouteResult result = Router::route(*req, config);
 
-                    ResponseBuilder::setBody(*res, body);
+                        switch (result.type)
+                        {
+                            case ROUTE_FILE:
+                            {
+                                std::cout << "FILE: " << result.filepath << std::endl;
+                                ResponseBuilder::setStatus(*res, 200);
+                                ResponseBuilder::setBodyFromFile(*res, result.filepath);
+                                ResponseBuilder::build(*res);
+                                break;
+                            }
+                            case ROUTE_UPLOAD:
+                            {
+                                std::ofstream outFile(result.upload_path.c_str(), std::ios::binary);
+                                if (outFile.is_open())
+                                {
+                                    outFile.write(req->body.c_str(), req->body.size());
+                                    outFile.close();
+                                    std::cout << "UPLOAD: " << result.upload_path << " (" << req->body.size() << " bytes)" << std::endl;
+                                    ResponseBuilder::setStatus(*res, 201);
+                                    ResponseBuilder::setHeader(*res, "Content-Type", "text/html");
+                                    std::ostringstream oss;
+                                    oss << "<!DOCTYPE html><html><body>"
+                                        << "<h1>201 Created</h1>"
+                                        << "<p>File uploaded (" << req->body.size() << " bytes)</p>"
+                                        << "</body></html>";
+                                    ResponseBuilder::setBody(*res, oss.str());
+                                    ResponseBuilder::build(*res);
+                                }
+                                else
+                                {
+                                    std::cerr << "UPLOAD ERREUR: " << result.upload_path << std::endl;
+                                    *res = ResponseBuilder::makeError(500);
+                                }
+                                break;
+                            }
+                            case ROUTE_DELETE:
+                            {
+                                if (std::remove(result.filepath.c_str()) == 0)
+                                {
+                                    std::cout << "DELETE: " << result.filepath << std::endl;
+                                    ResponseBuilder::setStatus(*res, 204);
+                                    ResponseBuilder::setBody(*res, "");
+                                    ResponseBuilder::build(*res);
+                                }
+                                else
+                                    *res = ResponseBuilder::makeError(500);
+                                break;
+                            }
+                            case ROUTE_REDIRECT:
+                            {
+                                std::cout << "REDIRECT " << result.redirect_code << " -> " << result.redirect_url << std::endl;
+                                *res = ResponseBuilder::makeRedirect(result.redirect_code, result.redirect_url);
+                                break;
+                            }
+                            case ROUTE_CGI:
+                            {
+                                std::cout << "CGI: " << result.filepath << std::endl;
+                                *res = executeCGI(*req, result.filepath, result.cgi_interpreter, config);
+                                break;
+                            }
+                            case ROUTE_DIRECTORY:
+                            {
+                                std::cout << "AUTOINDEX: " << result.filepath << std::endl;
+                                if (!Router::handleAutoindex(result.filepath, req->uri, *res))
+                                    *res = ResponseBuilder::makeError(403);
+                                break;
+                            }
+                            case ROUTE_ERROR:
+                            default:
+                            {
+                                std::map<int, std::string>::iterator errIt = config->error_pages.find(result.error_code);
+                                if (errIt != config->error_pages.end())
+                                {
+                                    std::string errPath = config->root_dir + errIt->second;
+                                    ResponseBuilder::setStatus(*res, result.error_code);
+                                    ResponseBuilder::setBodyFromFile(*res, errPath);
+                                    ResponseBuilder::build(*res);
+                                }
+                                else
+                                    *res = ResponseBuilder::makeError(result.error_code);
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 client->setState(CLIENT_WRITING);

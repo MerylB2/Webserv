@@ -9,14 +9,22 @@ Utilise les structs définies dans Dico.hpp.
 
 Utilisation :
     RouteResult result = Router::route(request, server_config);
-    if (result.type == ROUTE_FILE) {
-        // Servir le fichier result.filepath
+    switch (result.type) {
+        case ROUTE_FILE:    // Servir le fichier result.filepath
+        case ROUTE_UPLOAD:  // Fichier uploade a result.upload_path
+        case ROUTE_DELETE:  // Supprimer result.filepath
+        case ROUTE_CGI:     // Executer CGI
+        case ROUTE_REDIRECT:// Rediriger
+        case ROUTE_DIRECTORY:// Listing repertoire
+        case ROUTE_ERROR:   // Erreur HTTP
     }
 */
 
 // Type de réponse à générer
 enum RouteType {
-    ROUTE_FILE,         // Servir un fichier statique
+    ROUTE_FILE,         // Servir un fichier statique (GET)
+    ROUTE_UPLOAD,       // Sauvegarder un fichier (POST)
+    ROUTE_DELETE,       // Supprimer un fichier (DELETE)
     ROUTE_DIRECTORY,    // Répertoire (autoindex ou index file)
     ROUTE_CGI,          // Exécuter un script CGI
     ROUTE_REDIRECT,     // Redirection HTTP
@@ -26,7 +34,8 @@ enum RouteType {
 // Résultat du routing
 struct RouteResult {
     RouteType type;
-    std::string filepath;        // Chemin du fichier à servir
+    std::string filepath;        // Chemin du fichier a servir/supprimer
+    std::string upload_path;     // Chemin complet pour sauvegarder l'upload
     std::string cgi_interpreter; // Chemin de l'interpréteur CGI (si CGI)
     int error_code;              // Code d'erreur (si erreur)
     std::string redirect_url;    // URL de redirection (si redirect)
@@ -36,8 +45,13 @@ struct RouteResult {
 };
 
 namespace Router {
-    // Route une requête et retourne le résultat
+    // Route principale : dispatch selon la methode HTTP
     RouteResult route(const Request& request, ServerConfig* server);
+
+    // Routes par methode
+    RouteResult routeGET(const Request& request, LocationConfig* loc);
+    RouteResult routePOST(const Request& request, LocationConfig* loc);
+    RouteResult routeDELETE(const Request& request, LocationConfig* loc);
 
     // Trouve la LocationConfig correspondant à l'URI
     LocationConfig* matchLocation(const std::string& uri, ServerConfig* server);
@@ -61,12 +75,10 @@ namespace Router {
     bool isCGI(const std::string& path, const LocationConfig* loc);
 
     // Gère l'autoindex pour un répertoire
-    bool handleAutoindex(const std::string& dirpath, Response& response);
+    bool handleAutoindex(const std::string& dirpath, const std::string& uri, Response& response);
 
     // Génère une page d'erreur personnalisée
     void generateErrorPage(int error_code, const ServerConfig* server, Response& response);
-
-    // autres utilitaires de routing...
 }
 
 #endif
