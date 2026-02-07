@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: joohee <joohee@student.42.fr>              +#+  +:+       +#+         #
+#    By: chamebar <chamebar@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2026/01/28 11:03:02 by joohee           ###   ########.fr        #
+#    Updated: 2026/02/04 11:13:49 by chamebar         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -35,7 +35,7 @@ INCLUDES = -I./includes -I./includes/core -I./includes/http -I./includes/config 
 ifeq ($(UNAME_S), Linux)
     OS_FLAG = -D__LINUX__
     # Linux uses epoll
-    POLL_METHOD = epoll
+    POLL_METHOD = poll
 endif
 ifeq ($(UNAME_S), Darwin)
     OS_FLAG = -D__MACOS__
@@ -52,12 +52,13 @@ OBJDIR = obj
 # Source files (only existing files for now)
 # TODO: Add other files as they are implemented
 SRCFILES = main.cpp \
-		   core/server.cpp \
-			 config/ConfigParser.cpp \
+		   core/Server.cpp \
+		   core/Client.cpp \
+		   config/ConfigParser.cpp \
 		   http/Request.cpp \
 		   http/Response.cpp \
 		   http/Router.cpp \
-			 cgi/CGIHandler.cpp
+		   cgi/CGIHandler.cpp
 
 # Object files
 SOURCES = $(addprefix $(SRCDIR)/, $(SRCFILES))
