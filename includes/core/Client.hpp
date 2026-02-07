@@ -48,6 +48,7 @@ class Client
         Response* getResponse();
         int getServerPort() const;
         time_t getLastActivity() const;
+        CGIData* getCGIData();
         
 
         //Setters

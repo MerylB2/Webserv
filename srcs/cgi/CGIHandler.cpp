@@ -2,26 +2,9 @@
 #include "../../includes/http/Response.hpp"
 #include <iostream>
 #include <sstream>
+#include <fcntl.h>
 
-// Fonctions internes déclarées ici
-
-// Construit les variables d'environnement CGI
-static std::vector<std::string> buildEnvVars(const Request& request, const std::string& scriptPath, const ServerConfig* serverConfig);
-
-// Convertit vector<string> en char** pour execve()
-static char** vectorToEnvp(const std::vector<std::string>& env);
-
-// Libère la mémoire allouée pour envp
-static void freeEnvp(char** envp);
-
-// Parse la sortie CGI pour extraire headers et body
-static void parseCGIOutput(const std::string& cgiOutput, Response& response);
-
-// Extrait le répertoire d'un chemin
-//static std::string getDirectory(const std::string& path);
-
-// Extrait le nom de fichier d'un chemin
-static std::string getFilename(const std::string& path);
+// Fonctions utilitaires (declarees dans CGIHandler.hpp, partagees avec CGIAsync.cpp)
 
 
 // Fonction principale executeCGI()
@@ -155,7 +138,7 @@ Response executeCGI(const Request& request, const std::string& scriptPath, const
 
 // Variables d'environnement CGI buildEnvVars() 
 
-static std::vector<std::string> buildEnvVars(const Request& request, const std::string& scriptPath, const ServerConfig* serverConfig)
+std::vector<std::string> buildEnvVars(const Request& request, const std::string& scriptPath, const ServerConfig* serverConfig)
 {
     std::vector<std::string> env;
     std::ostringstream oss;
@@ -218,7 +201,7 @@ static std::vector<std::string> buildEnvVars(const Request& request, const std::
 }
 
 // vectorToEnvp() -> convertit vector<string> en char**
-static char** vectorToEnvp(const std::vector<std::string>& env)
+char** vectorToEnvp(const std::vector<std::string>& env)
 {
     char** envp = new char*[env.size() + 1];
     
@@ -234,7 +217,7 @@ static char** vectorToEnvp(const std::vector<std::string>& env)
 
 
 // freeEnvp() -> libère la mémoire
-static void freeEnvp(char** envp)
+void freeEnvp(char** envp)
 {
     if (!envp)
         return;
@@ -245,7 +228,7 @@ static void freeEnvp(char** envp)
 }
 
 // parseCGIOutput() -> parse la sortie du script
-static void parseCGIOutput(const std::string& cgiOutput, Response& response)
+void parseCGIOutput(const std::string& cgiOutput, Response& response)
 {
     // Chercher la séparation headers/body
     size_t headerEnd = cgiOutput.find("\r\n\r\n");
@@ -311,18 +294,7 @@ static void parseCGIOutput(const std::string& cgiOutput, Response& response)
 }
 
 
-/*// getDirectory() -> extrait le répertoire
-static std::string getDirectory(const std::string& path)
-{
-    size_t lastSlash = path.rfind('/');
-    if (lastSlash == std::string::npos)
-        return ".";
-    return path.substr(0, lastSlash);
-}*/
-
-
-// getFilename() -> extrait le nom de fichier
-static std::string getFilename(const std::string& path)
+std::string getFilename(const std::string& path)
 {
     size_t lastSlash = path.rfind('/');
     if (lastSlash == std::string::npos)

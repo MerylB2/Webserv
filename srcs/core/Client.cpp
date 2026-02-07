@@ -78,6 +78,11 @@ time_t Client::getLastActivity() const
     return _data.last_activity;
 }
 
+CGIData* Client::getCGIData()
+{
+    return &_data.cgi;
+}
+
 // SETTERS
 
 void Client::setState(ClientState state)

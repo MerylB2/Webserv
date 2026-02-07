@@ -34,9 +34,14 @@ class Server
         std::map<int, ServerConfig*> _socketToConfig; // Association socket serveur -> sa configuration : permet de savoir quelle config utiliser quand un client se connecte
         std::map<int, ClientData> _clientsData; // Association socket client -> configuration du serveur : quand un client se connecte sur le port 8080, on sait quelle config utiliser
 
+        // CGI non-bloquant : mapping pipe_out fd -> client fd
+        std::map<int, int> _cgiPipeToClient;
+        size_t _cgiStartIndex; // index dans _pollFds ou commencent les pipes CGI
+
         void buildPollFds();
         void handleNewConnections();
         void handleClientEvents();
+        void handleCGIEvents();
         void checkTimeouts();
     public :
         Server();

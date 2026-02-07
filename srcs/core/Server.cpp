@@ -125,9 +125,8 @@ void Server::setup(const std::vector<ServerConfig>& config)
 //Puis les fds concernant les fds sockets clients
 void Server::buildPollFds()
 {
-    //Il faut clear car entre le dernier appel et celui
-    //certains fd ne sont plus valides (clients partis par exemple)
     _pollFds.clear();
+    _cgiPipeToClient.clear();
 
     //socket serveur
     for (size_t i = 0; i < _serverSockets.size(); i++)
@@ -148,6 +147,26 @@ void Server::buildPollFds()
         pfd.events = POLLIN | POLLOUT;
         pfd.revents = 0;
         _pollFds.push_back(pfd);
+    }
+
+    //pipes CGI (pour les clients en attente de CGI)
+    _cgiStartIndex = _pollFds.size();
+    for (it = _clients.begin(); it != _clients.end(); ++it)
+    {
+        Client* client = it->second;
+        if (client->getClientState() == CLIENT_WAITING_CGI)
+        {
+            CGIData* cgi = client->getCGIData();
+            if (cgi->pipe_out >= 0)
+            {
+                struct pollfd pfd;
+                pfd.fd = cgi->pipe_out;
+                pfd.events = POLLIN;
+                pfd.revents = 0;
+                _pollFds.push_back(pfd);
+                _cgiPipeToClient[cgi->pipe_out] = it->first;
+            }
+        }
     }
 }
 
@@ -195,7 +214,7 @@ void Server::handleClientEvents()
 
     std::vector<int> toRemove;
 
-    for (size_t i = clientStartIndex; i < _pollFds.size(); i++)
+    for (size_t i = clientStartIndex; i < _cgiStartIndex; i++)
     {
         int fd = _pollFds[i].fd;
 
@@ -315,7 +334,16 @@ void Server::handleClientEvents()
                             case ROUTE_CGI:
                             {
                                 std::cout << "CGI: " << result.filepath << std::endl;
-                                *res = executeCGI(*req, result.filepath, result.cgi_interpreter, config);
+                                CGIData cgiData = startCGI(*req, result.filepath, result.cgi_interpreter, config);
+                                if (cgiData.pid < 0)
+                                {
+                                    *res = ResponseBuilder::makeError(500);
+                                }
+                                else
+                                {
+                                    *(client->getCGIData()) = cgiData;
+                                    client->setState(CLIENT_WAITING_CGI);
+                                }
                                 break;
                             }
                             case ROUTE_DIRECTORY:
@@ -344,7 +372,9 @@ void Server::handleClientEvents()
                     }
                 }
 
-                client->setState(CLIENT_WRITING);
+                // Ne pas ecraser CLIENT_WAITING_CGI (le CGI est en cours)
+                if (client->getClientState() != CLIENT_WAITING_CGI)
+                    client->setState(CLIENT_WRITING);
             }
         }
 
@@ -385,10 +415,80 @@ void Server::handleClientEvents()
     for (size_t i = 0; i < toRemove.size(); i++)
     {
         int fd = toRemove[i];
+        // Nettoyer un CGI en cours si necessaire
+        Client* c = _clients[fd];
+        if (c)
+        {
+            CGIData* cgi = c->getCGIData();
+            if (cgi->pid > 0)
+            {
+                kill(cgi->pid, SIGKILL);
+                waitpid(cgi->pid, NULL, 0);
+            }
+            if (cgi->pipe_out >= 0)
+                close(cgi->pipe_out);
+        }
         close(fd);
         delete _clients[fd];
         _clients.erase(fd);
         _clientsData.erase(fd);
+    }
+}
+
+
+void Server::handleCGIEvents()
+{
+    std::vector<int> toFinish;
+
+    for (size_t i = _cgiStartIndex; i < _pollFds.size(); i++)
+    {
+        int pipeFd = _pollFds[i].fd;
+
+        if (_cgiPipeToClient.find(pipeFd) == _cgiPipeToClient.end())
+            continue;
+
+        int clientFd = _cgiPipeToClient[pipeFd];
+        Client* client = _clients[clientFd];
+        if (!client)
+            continue;
+
+        CGIData* cgi = client->getCGIData();
+        bool done = false;
+
+        // Lire les donnees disponibles du pipe CGI
+        if (_pollFds[i].revents & (POLLIN | POLLHUP))
+        {
+            char buffer[4096];
+            ssize_t n;
+            while ((n = read(pipeFd, buffer, sizeof(buffer) - 1)) > 0)
+            {
+                cgi->buffer.append(buffer, n);
+            }
+            if (n == 0)
+                done = true;
+            if (_pollFds[i].revents & (POLLHUP | POLLERR))
+                done = true;
+        }
+
+        if (done)
+            toFinish.push_back(clientFd);
+    }
+
+    // Finaliser les CGI termines
+    for (size_t i = 0; i < toFinish.size(); i++)
+    {
+        int clientFd = toFinish[i];
+        Client* client = _clients[clientFd];
+        if (!client)
+            continue;
+
+        std::cout << "CGI termine pour client " << clientFd << std::endl;
+
+        Response* res = client->getResponse();
+        CGIData* cgi = client->getCGIData();
+
+        *res = finishCGI(*cgi);
+        client->setState(CLIENT_WRITING);
     }
 }
 
@@ -403,6 +503,34 @@ void Server::checkTimeouts()
     {
         Client* client = it->second;
 
+        // Timeout CGI : verifier les clients en attente de CGI
+        if (client->getClientState() == CLIENT_WAITING_CGI)
+        {
+            CGIData* cgi = client->getCGIData();
+            if (cgi->pid > 0)
+            {
+                double cgiDiff = difftime(now, cgi->start_time);
+                if (cgiDiff > WebservConfig::TIMEOUT_CGI)
+                {
+                    std::cerr << "CGI timeout pour client " << it->first
+                        << " (" << cgiDiff << "s)" << std::endl;
+                    kill(cgi->pid, SIGKILL);
+                    waitpid(cgi->pid, NULL, 0);
+                    if (cgi->pipe_out >= 0)
+                    {
+                        close(cgi->pipe_out);
+                        cgi->pipe_out = -1;
+                    }
+                    cgi->reset();
+                    Response* res = client->getResponse();
+                    *res = ResponseBuilder::makeError(HttpStatus::GATEWAY_TIMEOUT);
+                    client->setState(CLIENT_WRITING);
+                }
+            }
+            continue;
+        }
+
+        // Timeout client classique
         double diff = difftime(now, client->getLastActivity());
 
         if (diff > 60)
@@ -416,6 +544,19 @@ void Server::checkTimeouts()
     for (size_t i = 0; i < toRemove.size(); i++)
     {
         int fd = toRemove[i];
+        // Nettoyer un CGI en cours si necessaire
+        Client* c = _clients[fd];
+        if (c)
+        {
+            CGIData* cgi = c->getCGIData();
+            if (cgi->pid > 0)
+            {
+                kill(cgi->pid, SIGKILL);
+                waitpid(cgi->pid, NULL, 0);
+            }
+            if (cgi->pipe_out >= 0)
+                close(cgi->pipe_out);
+        }
         close(fd);
         delete(_clients[fd]);
         _clients.erase(fd);
@@ -457,7 +598,10 @@ void Server::run()
         // 4. Traiter les clients existants
         handleClientEvents();
 
-        // 5. Verifier timeouts
+        // 5. Traiter les pipes CGI non-bloquants
+        handleCGIEvents();
+
+        // 6. Verifier timeouts (clients + CGI)
         checkTimeouts();
     }
 

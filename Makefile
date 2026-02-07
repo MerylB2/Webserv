@@ -59,7 +59,8 @@ SRCFILES = main.cpp \
 		   http/Response.cpp \
 		   http/Router.cpp \
 		   http/Autoindex.cpp \
-		   cgi/CGIHandler.cpp
+		   cgi/CGIHandler.cpp \
+		   cgi/CGIAsync.cpp
 
 # Object files
 SOURCES = $(addprefix $(SRCDIR)/, $(SRCFILES))
