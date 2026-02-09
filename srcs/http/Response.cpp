@@ -9,10 +9,10 @@ namespace ResponseBuilder {
 void setCookie(Response& res, 
                    const std::string& name, 
                    const std::string& value,
-                   int max_age = 0,
-                   const std::string& path = "/",
-                   bool http_only = true,
-                   bool secure = false)
+                   int max_age,
+                   const std::string& path,
+                   bool http_only,
+                   bool secure)
 {
     std::ostringstream cookie;
 
@@ -21,7 +21,7 @@ void setCookie(Response& res,
     if (max_age > 0)
         cookie << "; Max-Age=" << max_age;
     else if (max_age < 0)
-        cookie << "Max-Age=0";
+        cookie << "; Max-Age=0";
         
     cookie << "; Path=" << path;
 
@@ -29,7 +29,9 @@ void setCookie(Response& res,
         cookie << "; HttpOnly";
     
     if (secure)
-        cookie << "; SameSite=Lax";
+        cookie << "; Secure";
+        
+    cookie << "; SameSite=Lax";
 
     res.set_cookies.push_back(cookie.str());
 }
@@ -83,6 +85,12 @@ std::string buildHeaders(const Response& res) {
     for (std::map<std::string, std::string>::const_iterator it = res.headers.begin();
          it != res.headers.end(); ++it) {
         oss << it->first << ": " << it->second << "\r\n";
+    }
+
+    //Header set-cookie
+    for (std::vector<std::string>::const_iterator it = res.set_cookies.begin();
+        it != res.set_cookies.end(); ++it) {
+        oss << "Set-Cookie: " << *it << "\r\n";
     }
 
     if (res.headers.find("Content-Length") == res.headers.end()) {
