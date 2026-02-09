@@ -18,6 +18,13 @@ Utilisation :
 
 namespace ResponseBuilder {
     // Setters
+    void setCookie(Response& res, 
+                   const std::string& name, 
+                   const std::string& value,
+                   int max_age = 0,
+                   const std::string& path = "/",
+                   bool http_only = true,
+                   bool secure = false);
     void setStatus(Response& res, int code);
     void setStatus(Response& res, int code, const std::string& message);
     void setHeader(Response& res, const std::string& name, const std::string& value);

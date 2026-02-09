@@ -186,6 +186,8 @@ struct Request {
 
     int error_code;   // Code d'erreur si requête invalide (0 = pas d'erreur)
 
+    std::map<std::string, std::string> cookies; //cookies
+
     Request():
 		method(""),
         uri(""),
@@ -212,6 +214,7 @@ struct Request {
         read_buffer.clear();
         body_bytes_received = 0;
         error_code = 0;
+        cookies.clear();
     }
 };
 
@@ -248,6 +251,8 @@ struct Response {
 
     bool is_complete; // True si tout a été envoyé
 
+    std::vector<std::string> set_cookies;
+
     Response():
         status_code(200),
         status_message("OK"),
@@ -265,6 +270,7 @@ struct Response {
         bytes_sent = 0;
         is_ready = false;
         is_complete = false;
+        set_cookies.clear();
     }
 };
 

@@ -6,6 +6,34 @@ namespace ResponseBuilder {
 
 /* ========== Setters ========== */
 
+void setCookie(Response& res, 
+                   const std::string& name, 
+                   const std::string& value,
+                   int max_age = 0,
+                   const std::string& path = "/",
+                   bool http_only = true,
+                   bool secure = false)
+{
+    std::ostringstream cookie;
+
+    cookie << name << "=" << value;
+
+    if (max_age > 0)
+        cookie << "; Max-Age=" << max_age;
+    else if (max_age < 0)
+        cookie << "Max-Age=0";
+        
+    cookie << "; Path=" << path;
+
+    if (http_only)
+        cookie << "; HttpOnly";
+    
+    if (secure)
+        cookie << "; SameSite=Lax";
+
+    res.set_cookies.push_back(cookie.str());
+}
+
 void setStatus(Response& res, int code) {
     res.status_code = code;
     res.status_message = HttpStatus::getMessage(code);

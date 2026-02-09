@@ -109,6 +109,47 @@ bool parseRequestLine(Request& req, const std::string& line) {
     return true;
 }
 
+//Fonction qui permet de parser la ligne concernant les cookies
+void parseCookies(Request& req)
+{
+    std::map<std::string, std::string>::iterator it = req.headers.find("cookie");
+    if (it == req.headers.end())
+        return;
+    
+    std::string cookie_header = it->second;
+
+    size_t pos = 0;
+
+    //Format : "name1=value1;name2=value2;name3=value3"
+    while (pos < cookie_header.length())
+    {
+        //Ignore les espaces
+        while (pos < cookie_header.length() && cookie_header[pos] == ' ')
+            pos++;
+        
+        if (pos >= cookie_header.length())
+            break;
+
+        //Trouver le =
+        size_t equal_pos = cookie_header.find("=", pos);
+        if (equal_pos == std::string::npos)
+            break;
+        
+        std::string name = cookie_header.substr(pos, equal_pos - pos);
+
+        //Trouver le ';' ou fin de chaine
+        size_t pos_point_virgule = cookie_header.find(";", equal_pos);
+        if (pos_point_virgule == std::string::npos)
+            pos_point_virgule = cookie_header.length();
+        
+        std::string value = cookie_header.substr(equal_pos + 1, pos_point_virgule - equal_pos - 1);
+
+        //Stocker le cookie
+        req.cookies[name] = value;
+        pos = pos_point_virgule + 1;
+    }
+}
+
 /*
 Parse un header : "Content-Type: text/html"
 */
@@ -131,6 +172,11 @@ bool parseHeader(Request& req, const std::string& line) {
         name_lower[i] = std::tolower(name_lower[i]);
 
     req.headers[name] = value;
+
+    if (name_lower == "cookie")
+    {
+        parseCookies(req);
+    }
 
     if (name_lower == "content-length") {
         req.content_length = static_cast<size_t>(std::atol(value.c_str()));
