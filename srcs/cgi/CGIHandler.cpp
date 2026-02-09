@@ -49,10 +49,14 @@ Response executeCGI(const Request& request, const std::string& scriptPath, const
         close(pipe_out[1]);
         
         // Se placer dans le répertoire du script
-        //std::string scriptDir = getDirectory(scriptPath);
-        //if (!scriptDir.empty())
-        //   chdir(scriptDir.c_str());
-        
+        size_t lastSlash = scriptPath.rfind('/');
+        if (lastSlash != std::string::npos)
+        {
+            std::string scriptDir = scriptPath.substr(0, lastSlash);
+            if (!scriptDir.empty())
+                chdir(scriptDir.c_str());
+        }
+  
         // Construire les variables d'environnement
         std::vector<std::string> envVars = buildEnvVars(request, scriptPath, serverConfig);
         char** envp = vectorToEnvp(envVars);
@@ -61,7 +65,7 @@ Response executeCGI(const Request& request, const std::string& scriptPath, const
         std::string filename = getFilename(scriptPath);
         char* args[3];
         args[0] = const_cast<char*>(interpreter.c_str());
-        args[1] = const_cast<char*>(scriptPath.c_str());
+        args[1] = const_cast<char*>(filename.c_str());
         args[2] = NULL;
         
         // Exécuter le script

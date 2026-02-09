@@ -47,13 +47,26 @@ CGIData startCGI(const Request& request, const std::string& scriptPath,
         close(pipe_out[0]);
         close(pipe_out[1]);
 
+        //Extraire le répertoire
+        std::string scriptDir = "";
+        std::string scriptName = scriptPath;
+
+        size_t lastSlash = scriptPath.rfind('/');
+        if (lastSlash != std::string::npos)
+        {
+            scriptDir = scriptPath.substr(0, lastSlash);
+            scriptName = scriptPath.substr(lastSlash + 1);
+        }
+        // chdir vers le répertoire du script
+        if (!scriptDir.empty())
+            chdir(scriptDir.c_str());
+
         std::vector<std::string> envVars = buildEnvVars(request, scriptPath, serverConfig);
         char** envp = vectorToEnvp(envVars);
 
-        std::string filename = getFilename(scriptPath);
         char* args[3];
         args[0] = const_cast<char*>(interpreter.c_str());
-        args[1] = const_cast<char*>(scriptPath.c_str());
+        args[1] = const_cast<char*>(scriptName.c_str());  // ← JUSTE LE NOM !
         args[2] = NULL;
 
         execve(interpreter.c_str(), args, envp);
