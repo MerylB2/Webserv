@@ -1,5 +1,7 @@
 #include "../../includes/config/ConfigParser.hpp"
 #include <iostream>
+#include <set>
+#include <sstream>
 
 ConfigParser::ConfigParser() : _inServer(false), _inLocation(false) {}
 
@@ -388,10 +390,16 @@ void ConfigParser::parseReturn(const std::string& value) {
 
 // Validation complète après parsing
 void ConfigParser::validateConfig() {
+    std::set<int> ports;
     if (_servers.empty()) {
         throw std::runtime_error("No server defined in config");
-    }   
+    } 
     for (size_t i = 0; i < _servers.size(); i++) {
+        if (!ports.insert(_servers[i].listen_port).second) {
+            std::ostringstream oss;
+            oss << "Duplicate port: " << _servers[i].listen_port;
+            throw std::runtime_error(oss.str());
+        }
         validateServer(_servers[i]);
     }
 }
