@@ -108,9 +108,6 @@ int Client::readData()
     //3. Gestion des erreurs
     if (bytesRead < 0)
     {
-        //cas ou il n'y a pas de donnees
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return 0;
         //vraie erreur
         std::cout << "ERROR: recv() failed pour fd " << _data.socket_fd << std::endl;
         return -1;
@@ -167,6 +164,19 @@ int Client::writeData()
         _data.response.bytes_sent += n;
         if (_data.response.bytes_sent >= _data.response.send_buffer.size())
             _data.response.is_complete = true;
+    }
+        //3. Gestion des erreurs
+    if (n < 0)
+    {
+        //vraie erreur
+        std::cout << "ERROR: recv() failed pour fd " << _data.socket_fd << std::endl;
+        return -1;
+    }
+    //Fermeture de la connexion par le client
+    if (n == 0)
+    {
+        std::cout << "Client fd " << _data.socket_fd << " a ferme la connexion" << std::endl;
+        return 0;
     }
 
     return n;
