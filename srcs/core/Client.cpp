@@ -169,7 +169,7 @@ int Client::writeData()
     if (n < 0)
     {
         //vraie erreur
-        std::cout << "ERROR: recv() failed pour fd " << _data.socket_fd << std::endl;
+        std::cout << "ERROR: send() failed pour fd " << _data.socket_fd << std::endl;
         return -1;
     }
     //Fermeture de la connexion par le client
