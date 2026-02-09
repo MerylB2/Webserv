@@ -1,10 +1,9 @@
 #!/bin/bash
 
 # ============================================================
-# Webserv - Script de tests d'intégration
+# Webserv - Script de tests d'integration
 # Usage : ./tests/run_tests.sh
-# Prérequis : le serveur doit tourner sur le port 8080
-#             ./webserv config/default.conf
+# Le script compile, lance le serveur, teste, puis arrete
 # ============================================================
 
 RED='\033[0;31m'
@@ -14,11 +13,16 @@ CYAN='\033[1;36m'
 RESET='\033[0m'
 
 HOST="http://localhost:8080"
+HOST2="http://localhost:8081"
 PASS=0
 FAIL=0
 TOTAL=0
+SERV_PID=0
 
-# Fonction de test
+# ============================================================
+# Fonctions utilitaires
+# ============================================================
+
 run_test() {
     local num="$1"
     local name="$2"
@@ -27,8 +31,7 @@ run_test() {
     local curl_args=("$@")
 
     TOTAL=$((TOTAL + 1))
-    # -s silent, -o /dev/null discard body, -w get status code
-    code=$(curl -s -o /dev/null -w "%{http_code}" "${curl_args[@]}")
+    code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "${curl_args[@]}")
 
     if [ "$code" = "$expected_code" ]; then
         echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
@@ -39,123 +42,211 @@ run_test() {
     fi
 }
 
-# Fonction pour afficher le body d'une requête (mode verbose)
-run_test_verbose() {
+# Test qui verifie aussi un header specifique
+run_test_header() {
     local num="$1"
     local name="$2"
     local expected_code="$3"
-    shift 3
+    local header_name="$4"
+    local header_contains="$5"
+    shift 5
     local curl_args=("$@")
 
     TOTAL=$((TOTAL + 1))
-    response=$(curl -s -w "\n%{http_code}" "${curl_args[@]}")
+    local tmpfile=$(mktemp)
+    code=$(curl -s -D "$tmpfile" -o /dev/null -w "%{http_code}" --max-time 5 "${curl_args[@]}")
+    local header_value=$(grep -i "^${header_name}:" "$tmpfile" | tr -d '\r' | head -1)
+    rm -f "$tmpfile"
+
+    if [ "$code" = "$expected_code" ]; then
+        if [ -n "$header_contains" ] && echo "$header_value" | grep -qi "$header_contains"; then
+            echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
+            echo -e "    ${CYAN}→ $header_value${RESET}"
+            PASS=$((PASS + 1))
+        elif [ -n "$header_contains" ]; then
+            echo -e "  ${RED}✗${RESET} Test $num: $name ${RED}[header $header_name missing '$header_contains']${RESET}"
+            echo -e "    ${RED}→ got: $header_value${RESET}"
+            FAIL=$((FAIL + 1))
+        else
+            echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
+            PASS=$((PASS + 1))
+        fi
+    else
+        echo -e "  ${RED}✗${RESET} Test $num: $name ${RED}[got $code, expected $expected_code]${RESET}"
+        FAIL=$((FAIL + 1))
+    fi
+}
+
+# Test qui verifie le body
+run_test_body() {
+    local num="$1"
+    local name="$2"
+    local expected_code="$3"
+    local body_contains="$4"
+    shift 4
+    local curl_args=("$@")
+
+    TOTAL=$((TOTAL + 1))
+    local response
+    response=$(curl -s -w "\n%{http_code}" --max-time 5 "${curl_args[@]}")
     code=$(echo "$response" | tail -1)
     body=$(echo "$response" | sed '$d')
 
     if [ "$code" = "$expected_code" ]; then
-        echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
-        PASS=$((PASS + 1))
+        if [ -n "$body_contains" ] && echo "$body" | grep -q "$body_contains"; then
+            echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
+            PASS=$((PASS + 1))
+        elif [ -n "$body_contains" ]; then
+            echo -e "  ${RED}✗${RESET} Test $num: $name ${RED}[body missing '$body_contains']${RESET}"
+            FAIL=$((FAIL + 1))
+        else
+            echo -e "  ${GREEN}✓${RESET} Test $num: $name ${GREEN}[$code]${RESET}"
+            PASS=$((PASS + 1))
+        fi
     else
         echo -e "  ${RED}✗${RESET} Test $num: $name ${RED}[got $code, expected $expected_code]${RESET}"
         FAIL=$((FAIL + 1))
     fi
-    echo -e "    ${CYAN}Body:${RESET} $(echo "$body" | head -3)"
 }
 
-# Nettoyage des fichiers de test précédents
 cleanup() {
-    rm -f /tmp/webserv_test_upload.txt
-    rm -f /tmp/webserv_big_body.txt
+    curl -s -X DELETE "$HOST/uploads/test_upload.txt" > /dev/null 2>&1
+    curl -s -X DELETE "$HOST/uploads/test_upload2.txt" > /dev/null 2>&1
 }
-cleanup
+
+stop_server() {
+    if [ "$SERV_PID" -ne 0 ] && kill -0 "$SERV_PID" 2>/dev/null; then
+        kill "$SERV_PID" 2>/dev/null
+        wait "$SERV_PID" 2>/dev/null
+    fi
+}
+
+# ============================================================
+# Compilation et lancement du serveur
+# ============================================================
 
 echo ""
-echo -e "${CYAN}╔══════════════════════════════════════════════╗${RESET}"
-echo -e "${CYAN}║       WEBSERV - Tests d'intégration          ║${RESET}"
-echo -e "${CYAN}╚══════════════════════════════════════════════╝${RESET}"
+echo -e "${CYAN}╔══════════════════════════════════════════════════╗${RESET}"
+echo -e "${CYAN}║        WEBSERV - Tests d'integration             ║${RESET}"
+echo -e "${CYAN}╚══════════════════════════════════════════════════╝${RESET}"
 echo ""
+
+# Compiler
+echo -e "${YELLOW}Compilation...${RESET}"
+make -C "$(dirname "$0")/.." > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Erreur de compilation${RESET}"
+    exit 1
+fi
+echo -e "${GREEN}OK${RESET}"
+echo ""
+
+# Tuer un eventuel serveur existant
+pkill -f "./webserv" 2>/dev/null
+sleep 0.5
+
+# Lancer le serveur
+cd "$(dirname "$0")/.." || exit 1
+./webserv config/default.conf > /tmp/webserv_test.log 2>&1 &
+SERV_PID=$!
+sleep 1
+
+# Verifier que le serveur repond
+check=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "$HOST/")
+if [ "$check" != "200" ]; then
+    echo -e "${RED}Le serveur ne repond pas (code: $check)${RESET}"
+    stop_server
+    exit 1
+fi
+echo -e "${GREEN}Serveur demarre (PID $SERV_PID)${RESET}"
+echo ""
+
+trap 'stop_server; cleanup' EXIT
 
 # ============================================================
 # 1. GET - Fichiers statiques
 # ============================================================
-echo -e "${YELLOW}━━━ GET - Fichiers statiques ━━━${RESET}"
+echo -e "${YELLOW}━━━ 1. GET - Fichiers statiques ━━━${RESET}"
 
-run_test 1 "GET / (index.html)" "200" "$HOST/"
-run_test 2 "GET /index.html" "200" "$HOST/index.html"
-run_test 3 "GET fichier inexistant" "404" "$HOST/cette-page-nexiste-pas"
-run_test 4 "GET /errors/404.html (page erreur)" "200" "$HOST/errors/404.html"
-
-echo ""
-
-# ============================================================
-# 2. GET - Redirections
-# ============================================================
-echo -e "${YELLOW}━━━ GET - Redirections ━━━${RESET}"
-
-run_test 5 "GET /redirect (301)" "301" "$HOST/redirect"
-# Vérifier le header Location
-location=$(curl -s -I "$HOST/redirect" | grep -i "^Location:" | tr -d '\r')
-echo -e "    ${CYAN}→ $location${RESET}"
+run_test 1  "GET / (page d'accueil)"       "200" "$HOST/"
+run_test 2  "GET /index.html"               "200" "$HOST/index.html"
+run_test 3  "GET fichier inexistant"        "404" "$HOST/cette-page-nexiste-pas"
+run_test 4  "GET /errors/404.html"          "200" "$HOST/errors/404.html"
 
 echo ""
 
 # ============================================================
-# 3. POST - Upload de fichiers
+# 2. Redirections
 # ============================================================
-echo -e "${YELLOW}━━━ POST - Upload ━━━${RESET}"
+echo -e "${YELLOW}━━━ 2. Redirections ━━━${RESET}"
 
-run_test 6 "POST upload fichier texte" "201" \
+run_test_header 5 "GET /redirect (301 + Location)" "301" \
+    "Location" "google" "$HOST/redirect"
+
+echo ""
+
+# ============================================================
+# 3. POST - Upload
+# ============================================================
+echo -e "${YELLOW}━━━ 3. POST - Upload ━━━${RESET}"
+
+run_test 6  "POST upload fichier texte" "201" \
     -X POST "$HOST/uploads/test_upload.txt" \
     -H "Content-Type: text/plain" \
-    -d "Contenu du fichier de test"
+    -d "Hello Webserv"
 
-run_test 7 "GET fichier uploadé" "200" "$HOST/uploads/test_upload.txt"
+run_test_body 7  "GET fichier uploade (contenu)" "200" \
+    "Hello Webserv" "$HOST/uploads/test_upload.txt"
 
-# Vérifier le contenu
-content=$(curl -s "$HOST/uploads/test_upload.txt")
-if [ "$content" = "Contenu du fichier de test" ]; then
-    echo -e "    ${GREEN}→ Contenu vérifié OK${RESET}"
-else
-    echo -e "    ${RED}→ Contenu incorrect: $content${RESET}"
-fi
+# POST ecrase le fichier
+run_test 8  "POST ecrase fichier existant" "201" \
+    -X POST "$HOST/uploads/test_upload.txt" \
+    -H "Content-Type: text/plain" \
+    -d "Nouveau contenu"
+
+run_test_body 9  "GET contenu apres ecrasement" "200" \
+    "Nouveau contenu" "$HOST/uploads/test_upload.txt"
 
 echo ""
 
 # ============================================================
-# 4. DELETE - Suppression
+# 4. DELETE
 # ============================================================
-echo -e "${YELLOW}━━━ DELETE - Suppression ━━━${RESET}"
+echo -e "${YELLOW}━━━ 4. DELETE - Suppression ━━━${RESET}"
 
-run_test 8 "DELETE fichier uploadé" "204" \
-    -X DELETE "$HOST/uploads/test_upload.txt"
-
-run_test 9 "GET après DELETE (404)" "404" "$HOST/uploads/test_upload.txt"
-
-run_test 10 "DELETE fichier inexistant" "404" \
-    -X DELETE "$HOST/uploads/fichier_inexistant.txt"
+run_test 10 "DELETE fichier uploade"        "204" -X DELETE "$HOST/uploads/test_upload.txt"
+run_test 11 "GET apres DELETE (404)"        "404" "$HOST/uploads/test_upload.txt"
+run_test 12 "DELETE fichier inexistant"     "404" -X DELETE "$HOST/uploads/fichier_inexistant.txt"
 
 echo ""
 
 # ============================================================
 # 5. Autoindex
 # ============================================================
-echo -e "${YELLOW}━━━ Autoindex ━━━${RESET}"
+echo -e "${YELLOW}━━━ 5. Autoindex ━━━${RESET}"
 
-run_test 11 "GET /uploads/ (autoindex ON)" "200" "$HOST/uploads/"
-run_test 12 "GET /cgi-test/ (autoindex OFF)" "403" "$HOST/cgi-test/"
+run_test_body 13 "GET /uploads/ autoindex ON (HTML table)" "200" \
+    "<table>" "$HOST/uploads/"
+
+run_test 14 "GET /cgi-test/ autoindex OFF (403)" "403" "$HOST/cgi-test/"
 
 echo ""
 
 # ============================================================
 # 6. CGI
 # ============================================================
-echo -e "${YELLOW}━━━ CGI ━━━${RESET}"
+echo -e "${YELLOW}━━━ 6. CGI ━━━${RESET}"
 
-run_test 13 "CGI Python GET" "200" "$HOST/cgi-test/test.py"
-run_test 14 "CGI Python GET avec query string" "200" "$HOST/cgi-test/test.py?name=webserv&lang=cpp"
-run_test 15 "CGI Bash GET" "200" "$HOST/cgi-test/test.sh"
+run_test_body 15 "CGI Python GET" "200" \
+    "CGI PYTHON" "$HOST/cgi-test/test.py"
 
-run_test 16 "CGI Python POST" "200" \
+run_test_body 16 "CGI Python GET + query string" "200" \
+    "REQUEST_METHOD" "$HOST/cgi-test/test.py?name=webserv&lang=cpp"
+
+run_test_body 17 "CGI Bash GET" "200" \
+    "CGI BASH" "$HOST/cgi-test/test.sh"
+
+run_test 18 "CGI Python POST" "200" \
     -X POST "$HOST/cgi-test/test.py" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "user=test&action=login"
@@ -163,56 +254,69 @@ run_test 16 "CGI Python POST" "200" \
 echo ""
 
 # ============================================================
-# 7. Méthodes non autorisées
+# 7. Methodes non autorisees (405)
 # ============================================================
-echo -e "${YELLOW}━━━ Méthodes non autorisées ━━━${RESET}"
+echo -e "${YELLOW}━━━ 7. Methodes non autorisees ━━━${RESET}"
 
-run_test 17 "PATCH sur / (connexion rejetée)" "000" \
-    -X PATCH "$HOST/" -d "data"
+run_test 19 "DELETE sur / (405)" "405" -X DELETE "$HOST/index.html"
 
-run_test 18 "DELETE sur / (non autorisé)" "405" \
-    -X DELETE "$HOST/index.html"
-
-run_test 19 "POST sur /cgi-test/ sans script" "403" \
+run_test 20 "POST sur /cgi-test/ sans script (403)" "403" \
     -X POST "$HOST/cgi-test/"
 
 echo ""
 
 # ============================================================
-# 8. Headers et comportements HTTP
+# 8. Headers HTTP
 # ============================================================
-echo -e "${YELLOW}━━━ Headers HTTP ━━━${RESET}"
+echo -e "${YELLOW}━━━ 8. Headers HTTP ━━━${RESET}"
 
-# Vérifier Content-Type des réponses
-ct_html=$(curl -s -I "$HOST/index.html" | grep -i "^Content-Type:" | tr -d '\r')
-echo -e "  ${CYAN}HTML:${RESET} $ct_html"
+run_test_header 21 "Content-Type: text/html pour .html" "200" \
+    "Content-Type" "text/html" "$HOST/index.html"
 
-ct_cgi=$(curl -s -I "$HOST/cgi-test/test.py" | grep -i "^Content-Type:" | tr -d '\r')
-echo -e "  ${CYAN}CGI:${RESET}  $ct_cgi"
+run_test_header 22 "Content-Type: text/html pour CGI" "200" \
+    "Content-Type" "text/html" "$HOST/cgi-test/test.py"
 
-# Tester Keep-Alive
-run_test 20 "Requête avec Connection: keep-alive" "200" \
-    -H "Connection: keep-alive" "$HOST/"
-
-run_test 21 "Requête avec Connection: close" "200" \
-    -H "Connection: close" "$HOST/"
+run_test 23 "Connection: keep-alive" "200" -H "Connection: keep-alive" "$HOST/"
+run_test 24 "Connection: close"      "200" -H "Connection: close" "$HOST/"
 
 echo ""
 
 # ============================================================
-# 9. CGI non-bloquant (concurrence)
+# 9. client_max_body_size (413)
 # ============================================================
-echo -e "${YELLOW}━━━ CGI non-bloquant (concurrence) ━━━${RESET}"
+echo -e "${YELLOW}━━━ 9. client_max_body_size (413) ━━━${RESET}"
 
-# Lancer un CGI en background et une requête statique en parallèle
-echo -e "  ${CYAN}Lancement CGI + requête statique en parallèle...${RESET}"
+# Generer un fichier de 6MB (depasse 5M du serveur port 8081)
+python3 -c "import sys; sys.stdout.buffer.write(b'X' * (1024 * 1024 * 6))" > /tmp/webserv_bigbody.bin
+
+run_test 25 "POST body > max_body_size (413)" "413" \
+    -X POST "$HOST2/" \
+    -H "Content-Type: application/octet-stream" \
+    --data-binary @/tmp/webserv_bigbody.bin
+
+rm -f /tmp/webserv_bigbody.bin
+
+# Petit body : ne doit PAS renvoyer 413
+run_test 26 "POST petit body != 413" "200" \
+    -X POST "$HOST/cgi-test/test.py" \
+    -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "data=ok"
+
+echo ""
+
+# ============================================================
+# 10. CGI non-bloquant (concurrence)
+# ============================================================
+echo -e "${YELLOW}━━━ 10. CGI non-bloquant ━━━${RESET}"
+
+echo -e "  ${CYAN}CGI + requete statique en parallele...${RESET}"
 
 start_cgi=$(date +%s%N)
-curl -s -o /dev/null "$HOST/cgi-test/test.py?sleep=1" &
+curl -s -o /dev/null --max-time 10 "$HOST/cgi-test/test.py" &
 pid_cgi=$!
 
 start_static=$(date +%s%N)
-curl -s -o /dev/null "$HOST/"
+curl -s -o /dev/null --max-time 5 "$HOST/"
 end_static=$(date +%s%N)
 
 wait $pid_cgi
@@ -221,47 +325,89 @@ end_cgi=$(date +%s%N)
 time_static=$(( (end_static - start_static) / 1000000 ))
 time_cgi=$(( (end_cgi - start_cgi) / 1000000 ))
 
-echo -e "  ${GREEN}→ Statique: ${time_static}ms | CGI: ${time_cgi}ms${RESET}"
-if [ "$time_static" -lt "$time_cgi" ]; then
-    echo -e "  ${GREEN}✓${RESET} Test 22: CGI non-bloquant vérifié ${GREEN}[statique plus rapide]${RESET}"
-    TOTAL=$((TOTAL + 1))
+TOTAL=$((TOTAL + 1))
+echo -e "  ${CYAN}→ Statique: ${time_static}ms | CGI: ${time_cgi}ms${RESET}"
+if [ "$time_static" -lt 1000 ]; then
+    echo -e "  ${GREEN}✓${RESET} Test 27: Serveur non-bloquant ${GREEN}[statique ${time_static}ms]${RESET}"
     PASS=$((PASS + 1))
 else
-    echo -e "  ${YELLOW}⚠${RESET} Test 22: CGI non-bloquant ${YELLOW}[pas de différence mesurable]${RESET}"
-    TOTAL=$((TOTAL + 1))
-    PASS=$((PASS + 1))
+    echo -e "  ${RED}✗${RESET} Test 27: Serveur non-bloquant ${RED}[statique trop lent: ${time_static}ms]${RESET}"
+    FAIL=$((FAIL + 1))
 fi
 
 echo ""
 
 # ============================================================
-# 10. Requêtes malformées / edge cases
+# 11. Second serveur (port 8081)
 # ============================================================
-echo -e "${YELLOW}━━━ Edge cases ━━━${RESET}"
+echo -e "${YELLOW}━━━ 11. Second serveur (port 8081) ━━━${RESET}"
 
-run_test 23 "URI très longue (404)" "404" \
-    "$HOST/$(python3 -c 'print("a"*100)')"
-
-run_test 24 "Requête sans Host header" "200" \
-    -H "Host:" "$HOST/"
-
-run_test 25 "Double slash dans URI" "200" \
-    "$HOST//index.html"
+run_test 28 "GET / sur port 8081"           "200" "$HOST2/"
+run_test 29 "POST sur port 8081 (GET only)" "405" \
+    -X POST "$HOST2/" -d "data"
 
 echo ""
 
 # ============================================================
-# Résumé
+# 12. Edge cases
 # ============================================================
-echo -e "${CYAN}══════════════════════════════════════════════${RESET}"
+echo -e "${YELLOW}━━━ 12. Edge cases ━━━${RESET}"
+
+run_test 30 "URI longue (100 chars)"   "404" \
+    "$HOST/$(python3 -c 'print("a"*100)')"
+
+run_test 31 "Double slash dans URI"     "200" "$HOST//index.html"
+
+run_test 32 "Requete sans Host header"  "200" -H "Host:" "$HOST/"
+
+# Plusieurs requetes consecutives rapides (stabilite)
+echo -e "  ${CYAN}10 requetes consecutives rapides...${RESET}"
+rapid_ok=0
+for i in $(seq 1 10); do
+    c=$(curl -s -o /dev/null -w "%{http_code}" --max-time 3 "$HOST/")
+    [ "$c" = "200" ] && rapid_ok=$((rapid_ok + 1))
+done
+TOTAL=$((TOTAL + 1))
+if [ "$rapid_ok" -eq 10 ]; then
+    echo -e "  ${GREEN}✓${RESET} Test 33: 10/10 requetes rapides OK ${GREEN}[stable]${RESET}"
+    PASS=$((PASS + 1))
+else
+    echo -e "  ${RED}✗${RESET} Test 33: ${rapid_ok}/10 requetes OK ${RED}[instable]${RESET}"
+    FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
+# ============================================================
+# 13. Pages d'erreur personnalisees
+# ============================================================
+echo -e "${YELLOW}━━━ 13. Pages d'erreur ━━━${RESET}"
+
+run_test_body 34 "404 renvoie page custom" "404" \
+    "Not Found" "$HOST/nexiste-pas"
+
+run_test_body 35 "405 renvoie page custom" "405" \
+    "Method Not Allowed" -X DELETE "$HOST/index.html"
+
+echo ""
+
+# ============================================================
+# Nettoyage
+# ============================================================
+cleanup
+
+# ============================================================
+# Resume
+# ============================================================
+echo -e "${CYAN}══════════════════════════════════════════════════${RESET}"
 echo -e "  Total: ${TOTAL}  |  ${GREEN}Pass: ${PASS}${RESET}  |  ${RED}Fail: ${FAIL}${RESET}"
 if [ "$FAIL" -eq 0 ]; then
     echo -e "  ${GREEN}✓ Tous les tests passent !${RESET}"
 else
-    echo -e "  ${RED}✗ $FAIL test(s) en échec${RESET}"
+    echo -e "  ${RED}✗ $FAIL test(s) en echec${RESET}"
 fi
-echo -e "${CYAN}══════════════════════════════════════════════${RESET}"
+echo -e "${CYAN}══════════════════════════════════════════════════${RESET}"
 echo ""
 
-cleanup
+stop_server
 exit $FAIL

@@ -275,7 +275,7 @@ void Server::handleClientEvents()
                         {
                             *res = ResponseBuilder::makeError(500);
                         }
-                        else if (req->body.size() || req->content_length > config->max_body_size)
+                        else if (req->body.size() > config->max_body_size)
                         {
                             *res = ResponseBuilder::makeError(413);
                         }
