@@ -1,6 +1,8 @@
 #include "../includes/core/Server.hpp"
 #include "../includes/config/ConfigParser.hpp"
 #include "../includes/core/Dico.hpp"
+#include "Response.hpp"
+#include "Request.hpp"
 
 Server* g_server = NULL;
 
@@ -38,6 +40,26 @@ int main(int argc, char **argv)
     }
 
     std::vector<ServerConfig> servers = config.getServers();
+
+    // ========== TEST COOKIES (a enlever apres) ==========
+    std::cout << "\n=== TEST COOKIES ===\n";
+    
+    Response res;
+    ResponseBuilder::setStatus(res, 200);
+    ResponseBuilder::setBody(res, "<h1>Cookie Test</h1>");
+    ResponseBuilder::setCookie(res, "session_id", "abc123xyz", 3600);
+    ResponseBuilder::build(res);
+    
+    std::cout << "--- Cookie créé ---\n" << res.send_buffer << std::endl;
+    
+    Response res2;
+    ResponseBuilder::setStatus(res2, 200);
+    ResponseBuilder::setBody(res2, "<h1>Logout</h1>");
+    ResponseBuilder::setCookie(res2, "session_id", "", -1);
+    ResponseBuilder::build(res2);
+    
+    std::cout << "--- Cookie supprimé ---\n" << res2.send_buffer << std::endl;
+    // ========== FIN TEST a enlever ==========
 
     //Creer le serveur
     Server server;

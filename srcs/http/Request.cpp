@@ -1,5 +1,6 @@
 #include "../../includes/http/Request.hpp"
 #include <sstream>
+#include <iostream>
 #include <algorithm>
 #include <cstdlib>
 
@@ -148,6 +149,11 @@ void parseCookies(Request& req)
         req.cookies[name] = value;
         pos = pos_point_virgule + 1;
     }
+
+    for (std::map<std::string, std::string>::iterator cookie_it = req.cookies.begin();
+         cookie_it != req.cookies.end(); ++cookie_it) {
+        std::cout << "  " << cookie_it->first << " = " << cookie_it->second << "\n";
+    }
 }
 
 /*
@@ -171,7 +177,7 @@ bool parseHeader(Request& req, const std::string& line) {
     for (size_t i = 0; i < name_lower.size(); ++i)
         name_lower[i] = std::tolower(name_lower[i]);
 
-    req.headers[name] = value;
+    req.headers[name_lower] = value;
 
     if (name_lower == "cookie")
     {
