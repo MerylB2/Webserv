@@ -248,4 +248,12 @@ bool parseChunkedBody(Request& req) {
     }
 }
 
+std::string getSessionId(const Request& req)
+{
+    std::map<std::string, std::string>::const_iterator it = req.cookies.find("session_id");
+    if (it != req.cookies.end())
+        return it->second;
+    return "";
+}
+
 } // namespace RequestParser

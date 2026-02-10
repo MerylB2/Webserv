@@ -413,6 +413,7 @@ namespace HttpStatus {
 
     // Erreur client
     const int BAD_REQUEST = 400;             // Requête malformée
+    const int UNAUTHORIZED = 401;            // Requete n'a pas abouti
     const int FORBIDDEN = 403;               // Accès interdit
     const int NOT_FOUND = 404;               // Ressource introuvable
     const int METHOD_NOT_ALLOWED = 405;      // Méthode non autorisée

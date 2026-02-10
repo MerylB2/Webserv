@@ -33,8 +33,11 @@ namespace RequestParser {
     bool parseChunkedBody(Request& req);
 
     void parseCookies(Request& req);
+
+    std::string getSessionId(const Request& req);
     // autres utilitaires de parsing...
 
 }
+
 
 #endif

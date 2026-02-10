@@ -1,5 +1,6 @@
 #include "../../includes/http/Router.hpp"
 #include "../../includes/http/Response.hpp"
+#include "Request.hpp"
 #include <sys/stat.h>
 #include <dirent.h>
 #include <iostream>
@@ -11,9 +12,45 @@ namespace Router {
 
 /* ========== Route principale ========== */
 
-RouteResult route(const Request& request, ServerConfig* server) {
+RouteResult route(const Request& request, ServerConfig* server)
+{
     RouteResult result;
 
+    // ===== Routes speciales pour les sessions =====
+
+    // 1. Route LOGIN (POST /login)
+    if (request.uri == "/login" && request.method == "POST")
+    {
+        result.type = ROUTE_LOGIN;
+        return result;
+    }
+
+    // 2. Route LOGOUT (GET/POST /logout)
+    if (request.uri == "/logout")
+    {
+        result.type = ROUTE_LOGOUT;
+        return result;
+    }
+
+    // 3. Route protegees (necessitent authentification)
+    if (request.uri == "/dashboard" || request.uri == "/profile")
+    {
+        //verifier l'authentification
+        SessionManager* sm = SessionManager::getInstance();
+        std::string session_id = RequestParser::getSessionId(request);
+
+        if (session_id.empty() || !sm->validateSession(session_id))
+        {
+            result.type = ROUTE_ERROR;
+            result.error_code = HttpStatus::UNAUTHORIZED;
+            return result;
+        }
+
+        //Authentifie -> continuer normalement
+        result.type = ROUTE_PROTECTED_PAGE;
+        result.session_id = session_id;
+        return result;
+    }
     // 1. Trouver la location correspondante
     LocationConfig* loc = matchLocation(request.uri, server);
     if (!loc) {

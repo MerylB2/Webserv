@@ -2,6 +2,7 @@
 #define ROUTER_HPP
 
 #include "../core/Dico.hpp"
+#include "SessionManager.hpp"
 
 /*
 Fonctions de routing pour les requêtes HTTP.
@@ -28,7 +29,10 @@ enum RouteType {
     ROUTE_DIRECTORY,    // Répertoire (autoindex ou index file)
     ROUTE_CGI,          // Exécuter un script CGI
     ROUTE_REDIRECT,     // Redirection HTTP
-    ROUTE_ERROR         // Page d'erreur
+    ROUTE_ERROR,         // Page d'erreur
+    ROUTE_LOGIN,
+    ROUTE_LOGOUT,
+    ROUTE_PROTECTED_PAGE
 };
 
 // Résultat du routing
@@ -40,6 +44,7 @@ struct RouteResult {
     int error_code;              // Code d'erreur (si erreur)
     std::string redirect_url;    // URL de redirection (si redirect)
     int redirect_code;           // Code de redirection (301/302)
+    std::string session_id;      // id de la sesion
 
     RouteResult() : type(ROUTE_ERROR), error_code(500), redirect_code(0) {}
 };
