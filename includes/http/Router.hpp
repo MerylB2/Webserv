@@ -44,7 +44,7 @@ struct RouteResult {
     int error_code;              // Code d'erreur (si erreur)
     std::string redirect_url;    // URL de redirection (si redirect)
     int redirect_code;           // Code de redirection (301/302)
-    std::string session_id;      // id de la sesion
+    std::string session_id;      // id de la session
 
     RouteResult() : type(ROUTE_ERROR), error_code(500), redirect_code(0) {}
 };

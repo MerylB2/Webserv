@@ -34,6 +34,8 @@ namespace RequestParser {
 
     void parseCookies(Request& req);
 
+    std::string getCookie(const Request& req, const std::string& name);
+
     std::string getSessionId(const Request& req);
     // autres utilitaires de parsing...
 

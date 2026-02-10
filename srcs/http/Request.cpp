@@ -256,4 +256,17 @@ std::string getSessionId(const Request& req)
     return "";
 }
 
+std::string getCookie(const Request& req, const std::string& name)
+{
+    // Verifier si les cookies ont ete parses
+        std::map<std::string, std::string>::const_iterator it = req.cookies.find(name);
+        
+        if (it != req.cookies.end())
+        {
+            return it->second;
+        }
+        
+        return "";
+}
+
 } // namespace RequestParser

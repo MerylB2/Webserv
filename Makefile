@@ -6,7 +6,7 @@
 #    By: chamebar <chamebar@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2026/02/10 13:13:14 by chamebar         ###   ########.fr        #
+#    Updated: 2026/02/10 22:10:48 by chamebar         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -60,6 +60,7 @@ SRCFILES = main.cpp \
 		   http/Router.cpp \
 		   http/Autoindex.cpp \
 		   http/SessionManager.cpp \
+		   http/SessionHandler.cpp \
 		   cgi/CGIHandler.cpp \
 		   cgi/CGIAsync.cpp
 

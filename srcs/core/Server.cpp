@@ -3,6 +3,7 @@
 #include "../../includes/http/Response.hpp"
 #include "../../includes/http/Router.hpp"
 #include "../../includes/cgi/CGIHandler.hpp"
+#include "SessionHandler.hpp"
 #include "Client.hpp"
 #include <fstream>
 #include <cstdio>
@@ -285,6 +286,25 @@ void Server::handleClientEvents()
 
                             switch (result.type)
                             {
+                                case ROUTE_LOGIN:
+                                {
+                                    SessionHandler::handleLogin(*req, *res);
+                                    ResponseBuilder::build(*res);
+                                    break;
+                                }
+                                case ROUTE_LOGOUT:
+                                {
+                                    std::string session_id = RequestParser::getCookie(*req, "session_id");
+                                    SessionHandler::handleLogout(*req, *res, session_id);
+                                    ResponseBuilder::build(*res);
+                                    break;
+                                }
+                                case ROUTE_PROTECTED_PAGE:
+                                {
+                                    SessionHandler::handleProtectedPage(*req, *res, result.session_id);
+                                    ResponseBuilder::build(*res);
+                                    break;
+                                }
                                 case ROUTE_FILE:
                                 {
                                     std::cout << "FILE: " << result.filepath << std::endl;
@@ -577,6 +597,9 @@ void Server::run()
     std::cout << "Lancement du serveur" << std::endl;
     std::cout << "Appuyer sur CTRL+C pour terminer" << std::endl;
 
+    SessionManager* sm = SessionManager::getInstance();
+    time_t last_cleanup = time(NULL);
+
     while(_running)
     {
         // 1. Preparer poll
@@ -596,6 +619,12 @@ void Server::run()
         if (activity == 0)
         {
             //Timeout
+            time_t now = time(NULL);
+            if (now - last_cleanup > 60) {
+                sm->cleanupExpiredSessions(3600);  // Expire après 1h
+                last_cleanup = now;
+                std::cout << "[SERVER] Nettoyage des sessions" << std::endl;
+            }
             continue;
         }
 
