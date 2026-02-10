@@ -368,6 +368,14 @@ struct ClientData {
     }
 };
 
+//Structure pour stocker les donnees d'une session
+struct SessionData {
+    std::string user;   //nom utilisateur
+    time_t created_at;  //Timescamp de creation
+    time_t last_activity;   //Derniere activite
+
+    SessionData() : user(""), created_at(0), last_activity(0) {}
+};
 
 /* CONSTANTES
 Valeurs constantes utilisées partout dans le projet.
