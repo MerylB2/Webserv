@@ -6,6 +6,8 @@
 #include <map>
 #include <ctime>
 #include <sys/types.h>
+#include <iostream>
+#include <sstream>
 
 /* LOCATION CONFIG
 Représente un bloc "location" dans le fichier de config.

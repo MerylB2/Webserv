@@ -14,6 +14,13 @@ class SessionManager {
 
         SessionManager(); //constructeur prive
 
+        // Empêcher la copie (DÉCLARATION SEULEMENT, PAS D'IMPLÉMENTATION)
+        SessionManager(const SessionManager&);
+        SessionManager& operator=(const SessionManager&);
+
+        //Generer un ID de session unique
+        std::string generateSessionId();
+
     public :
         //Obtenir l'instance unique
         static SessionManager* getInstance();
@@ -24,17 +31,14 @@ class SessionManager {
         //Recuperer une session existante
         SessionData* getSession(const std::string& session_id);
 
-        //Mettre a jour l'activite d'une session
-        void updateActivity(const std::string session_id);
+        //Verifie qu'une session existe
+        bool validateSession(const std::string& session_id);
 
         //Detruire une session
-        void destroySession(const std::string session_id);
+        void deleteSession(const std::string& session_id);
 
         //Nettoyer les sessions expirees
-        void cleanupExpiredSessions(int timeout_secons = 3600);
-
-        //Generer un ID de session unique
-        static std::string generateSessionId();
+        void cleanupExpiredSessions(time_t timeout_seconds = 3600);
 };
 
 #endif
