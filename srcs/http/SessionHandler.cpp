@@ -88,7 +88,7 @@ void handleProtectedPage(const Request& req, Response& res, const std::string& s
          << "<body>\n"
          << "<h1>Dashboard</h1>\n"
          << "<p>Bienvenue, <strong>" << username << "</strong>!</p>\n"
-         << "<a href='/logout'>Se déconnecter</a>\n"
+         << "<a href='/logout'>Se deconnecter</a>\n"
          << "</body>\n"
          << "</html>";
 
