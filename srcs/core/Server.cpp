@@ -623,22 +623,21 @@ void Server::run()
         handleClientEvents();
 
         if (activity == 0)
-        {
-            //Timeout
-            time_t now = time(NULL);
-            if (now - last_cleanup > 60) {
-                sm->cleanupExpiredSessions(3600);  // Expire après 1h
-                last_cleanup = now;
-                std::cout << "[SERVER] Nettoyage des sessions" << std::endl;
-            }
             continue;
-        }
 
         // 5. Traiter les pipes CGI non-bloquants
         handleCGIEvents();
 
         // 6. Verifier timeouts (clients + CGI)
         checkTimeouts();
+
+        // 7. Nettoyage periodique des sessions
+        time_t now = time(NULL);
+        if (now - last_cleanup > 60) {
+            sm->cleanupExpiredSessions(3600);  // Expire apres 1h
+            last_cleanup = now;
+            std::cout << "[SERVER] Nettoyage des sessions" << std::endl;
+        }
     }
 
     std::cout << "Serveur arrêté proprement" << std::endl;
