@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Webserv</title>
+    <title>Dashboard - Webserv</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -24,33 +24,27 @@
         }
         header h1 { font-size: 2.8em; font-weight: 300; letter-spacing: 6px; color: #e94560; }
         header p { margin-top: 8px; color: #888; font-size: 0.95em; letter-spacing: 2px; }
-        main { max-width: 420px; width: 90%; margin: 60px auto; }
+        main { max-width: 500px; width: 90%; margin: 60px auto; }
         .card {
             background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
-            padding: 32px; transition: border-color 0.2s;
+            padding: 32px; text-align: center; transition: border-color 0.2s;
         }
         .card:hover { border-color: #e94560; }
-        .card h2 { color: #e94560; font-size: 1.3em; margin-bottom: 24px; text-align: center; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 6px; color: #999; font-size: 0.9em; }
-        input[type="text"] {
-            width: 100%; padding: 12px; background: #0f0f0f; border: 1px solid #2a2a2a;
-            border-radius: 5px; font-size: 1em; color: #e0e0e0;
-            transition: border-color 0.2s;
-        }
-        input[type="text"]:focus { outline: none; border-color: #e94560; }
-        input[type="text"]::placeholder { color: #555; }
-        button {
-            width: 100%; padding: 12px; background: #e94560; color: #fff;
-            border: none; border-radius: 5px; font-size: 1em; font-weight: 500;
-            cursor: pointer; transition: background 0.2s;
-        }
-        button:hover { background: #c73a52; }
-        .info {
+        .card h2 { color: #e94560; font-size: 1.3em; margin-bottom: 16px; }
+        .card p { color: #999; font-size: 0.95em; margin-bottom: 8px; }
+        .user { color: #5dade2; font-weight: 600; font-size: 1.1em; }
+        .session-info {
             margin-top: 20px; padding: 14px; background: #111; border: 1px solid #2a2a2a;
             border-radius: 5px; font-size: 0.85em; color: #888; line-height: 1.5;
         }
-        .info strong { color: #e94560; }
+        .session-info strong { color: #e94560; }
+        .session-info code { color: #5dade2; font-family: monospace; font-size: 0.9em; }
+        .logout {
+            display: inline-block; margin-top: 24px; padding: 10px 28px;
+            background: #e94560; color: #fff; border-radius: 5px;
+            text-decoration: none; font-size: 0.95em; transition: background 0.2s;
+        }
+        .logout:hover { background: #c73a52; }
         .back { display: block; text-align: center; margin-top: 24px; color: #5dade2; text-decoration: none; font-size: 0.9em; }
         .back:hover { text-decoration: underline; }
         footer { margin-top: auto; padding: 20px; color: #555; font-size: 0.8em; text-align: center; }
@@ -59,22 +53,18 @@
 <body>
     <header>
         <h1>WEBSERV</h1>
-        <p>Connexion &mdash; Sessions &amp; Cookies</p>
+        <p>Dashboard &mdash; Session active</p>
     </header>
     <main>
         <div class="card">
-            <h2>Connexion</h2>
-            <form action="/login" method="POST">
-                <div class="form-group">
-                    <label for="username">Nom d'utilisateur</label>
-                    <input type="text" id="username" name="username" placeholder="Entrez votre nom" required>
-                </div>
-                <button type="submit">Se connecter</button>
-            </form>
-            <div class="info">
-                <strong>Info :</strong> Entrez n'importe quel nom pour tester le systeme de sessions et cookies.
-                Apres connexion, un cookie <strong>session_id</strong> sera cree et vous serez redirige vers le dashboard.
+            <h2>Dashboard</h2>
+            <p>Bienvenue, <span class="user">{{USERNAME}}</span></p>
+            <p>Vous etes connecte avec un cookie de session.</p>
+            <div class="session-info">
+                <strong>Cookie :</strong> <code>session_id={{SESSION_ID}}</code><br>
+                <strong>Statut :</strong> Authentifie
             </div>
+            <a class="logout" href="/logout">Se deconnecter</a>
         </div>
         <a class="back" href="/">&larr; Retour a l'accueil</a>
     </main>

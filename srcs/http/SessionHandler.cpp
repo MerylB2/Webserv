@@ -2,6 +2,7 @@
 #include "SessionManager.hpp"
 #include "Response.hpp"
 #include "Dico.hpp"
+#include <fstream>
 
 namespace SessionHandler {
 
@@ -81,20 +82,28 @@ void handleProtectedPage(const Request& req, Response& res, const std::string& s
 
     std::string username = session->user;
 
-    std::ostringstream html;
-    html << "<!DOCTYPE html>\n"
-         << "<html>\n"
-         << "<head><title>Dashboard</title></head>\n"
-         << "<body>\n"
-         << "<h1>Dashboard</h1>\n"
-         << "<p>Bienvenue, <strong>" << username << "</strong>!</p>\n"
-         << "<a href='/logout'>Se deconnecter</a>\n"
-         << "</body>\n"
-         << "</html>";
+    // Lire le fichier dashboard.html
+    std::ifstream file("./www/dashboard.html");
+    if (!file.is_open())
+    {
+        ResponseBuilder::setStatus(res, HttpStatus::INTERNAL_SERVER_ERROR);
+        ResponseBuilder::setBody(res, "<h1>500 Internal Server Error</h1>");
+        return;
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    std::string html = buf.str();
+
+    // Remplacer les placeholders
+    size_t pos;
+    while ((pos = html.find("{{USERNAME}}")) != std::string::npos)
+        html.replace(pos, 12, username);
+    while ((pos = html.find("{{SESSION_ID}}")) != std::string::npos)
+        html.replace(pos, 14, session_id);
 
     ResponseBuilder::setStatus(res, HttpStatus::OK);
     ResponseBuilder::setHeader(res, "Content-Type", "text/html");
-    ResponseBuilder::setBody(res, html.str());
+    ResponseBuilder::setBody(res, html);
 }
-
 }

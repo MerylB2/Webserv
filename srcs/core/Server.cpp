@@ -622,16 +622,16 @@ void Server::run()
         // 4. Traiter les clients existants
         handleClientEvents();
 
-        if (activity == 0)
-            continue;
+        if (activity > 0)
+        {
+            // 5. Traiter les pipes CGI non-bloquants
+            handleCGIEvents();
 
-        // 5. Traiter les pipes CGI non-bloquants
-        handleCGIEvents();
+            // 6. Verifier timeouts (clients + CGI)
+            checkTimeouts();
+        }
 
-        // 6. Verifier timeouts (clients + CGI)
-        checkTimeouts();
-
-        // 7. Nettoyage periodique des sessions
+        // 7. Nettoyage periodique des sessions (actif ou inactif)
         time_t now = time(NULL);
         if (now - last_cleanup > 60) {
             sm->cleanupExpiredSessions(3600);  // Expire apres 1h
