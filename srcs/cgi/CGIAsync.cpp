@@ -2,6 +2,7 @@
 #include "../../includes/http/Response.hpp"
 #include <iostream>
 #include <fcntl.h>
+#include <sys/stat.h> 
 
 /* ========== Version non-bloquante du CGI ========== */
 
@@ -12,6 +13,16 @@ CGIData startCGI(const Request& request, const std::string& scriptPath,
     const std::string& interpreter, const ServerConfig* serverConfig)
 {
     CGIData cgi;
+
+    // VÉRIFICATION si le scrip existe
+    struct stat fileStat;
+    if (stat(scriptPath.c_str(), &fileStat) != 0)
+    {
+        std::cerr << "CGI: Script introuvable: " << scriptPath << std::endl;
+        cgi.pid = -1;
+        cgi.errorCode = 404;
+        return cgi;
+    }
 
     int pipe_in[2];
     int pipe_out[2];

@@ -363,7 +363,8 @@ void Server::handleClientEvents()
                                     CGIData cgiData = startCGI(*req, result.filepath, result.cgi_interpreter, config);
                                     if (cgiData.pid < 0)
                                     {
-                                        *res = ResponseBuilder::makeError(500);
+                                        int code = (cgiData.errorCode > 0) ? cgiData.errorCode : 500;
+                                        *res = ResponseBuilder::makeError(code);
                                     }
                                     else
                                     {

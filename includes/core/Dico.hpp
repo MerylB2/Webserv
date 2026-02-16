@@ -309,12 +309,14 @@ struct CGIData {
     int pipe_out;           // Pipe pour lire la sortie du CGI (stdout du CGI)
     std::string buffer;     // Buffer pour accumuler la sortie du CGI
     time_t start_time;      // Timestamp du lancement (pour timeout)
+    int errorCode;          // Code d'erreur si le CGI n'a pas pu être lancé (0 = pas d'erreur)
 
     CGIData() :
         pid(-1),
         pipe_in(-1),
         pipe_out(-1),
-        start_time(0)
+        start_time(0),
+        errorCode(0)
     {}
 
     void reset() {
@@ -323,6 +325,7 @@ struct CGIData {
         pipe_out = -1;
         buffer.clear();
         start_time = 0;
+        errorCode = 0;
     }
 };
 

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <sstream>
 #include <fcntl.h>
-
+#include <sys/stat.h> 
 // Fonctions utilitaires (declarees dans CGIHandler.hpp, partagees avec CGIAsync.cpp)
 
 
@@ -12,6 +12,13 @@
 Response executeCGI(const Request& request, const std::string& scriptPath, const std::string& interpreter, const ServerConfig* serverConfig)
 {
     Response response;
+
+    struct stat fileStat;
+    if (stat(scriptPath.c_str(), &fileStat) != 0)
+    {
+        std::cerr << "CGI: Script introuvable: " << scriptPath << std::endl;
+        return ResponseBuilder::makeError(HttpStatus::NOT_FOUND);
+    }
     
     // ÉTAPE 1 : Créer les pipes
     int pipe_in[2];   // Serveur -> CGI (body POST)
