@@ -77,6 +77,13 @@ void SessionManager::deleteSession(const std::string& session_id)
     sessions.erase(session_id);
 }
 
+//Liberer le singleton
+void SessionManager::destroy()
+{
+    delete instance;
+    instance = NULL;
+}
+
 //Nettoyer les sessions expirees
 void SessionManager::cleanupExpiredSessions(time_t timeout_seconds)
 {

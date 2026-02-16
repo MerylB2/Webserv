@@ -39,6 +39,9 @@ class SessionManager {
 
         //Nettoyer les sessions expirees
         void cleanupExpiredSessions(time_t timeout_seconds = 3600);
+
+        //Liberer le singleton
+        static void destroy();
 };
 
 #endif

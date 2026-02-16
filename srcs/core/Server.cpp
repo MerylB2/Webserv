@@ -641,6 +641,7 @@ void Server::run()
         }
     }
 
+    SessionManager::destroy();
     std::cout << "Serveur arrêté proprement" << std::endl;
 }
 
