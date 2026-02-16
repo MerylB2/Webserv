@@ -616,6 +616,12 @@ void Server::run()
             continue;
         }
 
+        // 3. Traiter nouveaux clients
+        handleNewConnections();
+
+        // 4. Traiter les clients existants
+        handleClientEvents();
+
         if (activity == 0)
         {
             //Timeout
@@ -627,12 +633,6 @@ void Server::run()
             }
             continue;
         }
-
-        // 3. Traiter nouveaux clients
-        handleNewConnections();
-
-        // 4. Traiter les clients existants
-        handleClientEvents();
 
         // 5. Traiter les pipes CGI non-bloquants
         handleCGIEvents();
