@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: chamebar <chamebar@student.42.fr>          +#+  +:+       +#+         #
+#    By: cmetee-b <cmetee-b@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/08/05 14:08:36 by cmetee-b          #+#    #+#              #
-#    Updated: 2026/02/10 22:10:48 by chamebar         ###   ########.fr        #
+#    Updated: 2026/03/31 15:23:13 by cmetee-b         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -28,7 +28,8 @@ UNAME_S := $(shell uname -s)
 
 # Compiler and flags (C++98)
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 
+## -MMD -MP = pour obliger les .o (dependances) de compiler avec tous les fihiers modifs meme les hpp
 INCLUDES = -I./includes -I./includes/core -I./includes/http -I./includes/config -I./includes/cgi -I./includes/utils
 
 # OS-specific settings
