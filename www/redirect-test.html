@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Redirections - Webserv</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 50px auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      .test-box {
+        background: white;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .test-box h3 {
+        margin-top: 0;
+        color: #3498db;
+      }
+      code {
+        background: #ecf0f1;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+      a.btn {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        margin: 5px;
+      }
+      a.btn:hover {
+        background: #2980b9;
+      }
+      .code-block {
+        background: #2c3e50;
+        color: #ecf0f1;
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+      }
+      .success {
+        color: #27ae60;
+      }
+      .info {
+        color: #3498db;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔄 Test des Redirections HTTP</h1>
+
+    <div class="test-box">
+      <h3>301 - Moved Permanently (Redirection permanente)</h3>
+      <p>Le navigateur <strong>mémorise</strong> cette redirection.</p>
+      <p>Test : <a href="/old-page" class="btn">Aller vers /old-page</a></p>
+      <p>Commande curl :</p>
+      <div class="code-block">curl -v http://localhost:8080/old-page</div>
+      <p class="info">
+        Attendu : HTTP/1.1 301 Moved Permanently + Location: /new-page
+      </p>
+    </div>
+
+    <div class="test-box">
+      <h3>302 - Found (Redirection temporaire)</h3>
+      <p>Le navigateur <strong>ne mémorise pas</strong> cette redirection.</p>
+      <p>
+        Test :
+        <a href="/temp-redirect" class="btn">Aller vers /temp-redirect</a>
+      </p>
+      <p>Commande curl :</p>
+      <div class="code-block">curl -v http://localhost:8080/temp-redirect</div>
+      <p class="info">Attendu : HTTP/1.1 302 Found + Location: /</p>
+    </div>
+
+    <div class="test-box">
+      <h3>Redirection externe</h3>
+      <p>Redirige vers un site externe.</p>
+      <p>Test : <a href="/google" class="btn">Aller vers /google</a></p>
+      <p>Commande curl :</p>
+      <div class="code-block">curl -v http://localhost:8080/google</div>
+      <p class="info">
+        Attendu : HTTP/1.1 302 Found + Location: https://www.google.com
+      </p>
+    </div>
+
+    <div class="test-box">
+      <h3 class="success">✅ Comment vérifier que ça fonctionne ?</h3>
+      <p>Avec curl, tu dois voir :</p>
+      <div class="code-block">
+        < HTTP/1.1 301 Moved Permanently < Location: /new-page < Content-Type:
+        text/html
+      </div>
+      <p>
+        Le header <code>Location:</code> indique où le navigateur doit aller.
+      </p>
+    </div>
+
+    <p><a href="/">← Retour à l'accueil</a></p>
+  </body>
+</html>

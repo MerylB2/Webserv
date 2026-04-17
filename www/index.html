@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            padding: 40px 0 30px;
+            text-align: center;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-bottom: 2px solid #0f3460;
+        }
+        header h1 { font-size: 2.8em; font-weight: 300; letter-spacing: 6px; color: #e94560; }
+        header p { margin-top: 8px; color: #888; font-size: 0.95em; letter-spacing: 2px; }
+        main { max-width: 700px; width: 90%; margin: 40px auto; }
+        .card {
+            background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+            padding: 24px; transition: border-color 0.2s;
+        }
+        .card:hover { border-color: #e94560; }
+        .card h3 { color: #e94560; font-size: 1.1em; margin-bottom: 8px; }
+        .card p { color: #999; font-size: 0.9em; line-height: 1.5; margin-bottom: 8px; }
+        .card a { color: #5dade2; text-decoration: none; font-family: monospace; font-size: 0.9em; }
+        .card a:hover { text-decoration: underline; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .status {
+            text-align: center; padding: 20px; margin-bottom: 30px;
+            background: #1a1a1a; border-radius: 8px; border: 1px solid #2a2a2a;
+        }
+        .dot {
+            display: inline-block; width: 10px; height: 10px;
+            background: #2ecc71; border-radius: 50%; margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .status span { color: #2ecc71; font-weight: 500; }
+        footer { margin-top: auto; padding: 20px; color: #555; font-size: 0.8em; text-align: center; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>WEBSERV</h1>
+        <p>HTTP Server &mdash; C++98 &mdash; 42</p>
+    </header>
+    <main>
+        <div class="status"><div class="dot"></div><span>Serveur actif</span></div>
+        <div class="grid">
+            <div class="card">
+                <h3>Fichiers statiques</h3>
+                <p>Serveur de fichiers HTML, CSS, JS, images avec detection MIME automatique.</p>
+                <a href="/">/</a>
+            </div>
+            <div class="card">
+                <h3>Uploads</h3>
+                <p>Upload, consultation et suppression de fichiers via POST/GET/DELETE.</p>
+                <a href="/uploads/">/uploads/</a>
+            </div>
+            <div class="card">
+                <h3>CGI Python</h3>
+                <p>Execution de scripts Python avec variables d'environnement CGI.</p>
+                <a href="/cgi-test/test.py">/cgi-test/test.py</a>
+            </div>
+            <div class="card">
+                <h3>CGI Bash</h3>
+                <p>Execution de scripts Bash avec infos systeme.</p>
+                <a href="/cgi-test/test.sh">/cgi-test/test.sh</a>
+            </div>
+            <div class="card">
+                <h3>Redirection</h3>
+                <p>Test de redirection HTTP 301 vers un site externe.</p>
+                <a href="/redirect">/redirect</a>
+            </div>
+            <div class="card">
+                <h3>Cookies &amp; Sessions</h3>
+                <p>Connexion avec cookie de session, dashboard protege et deconnexion.</p>
+                <a href="/login.html">/login.html</a>
+            </div>
+            <div class="card">
+                <h3>Serveur 2 &mdash; API</h3>
+                <p>Second serveur (port 8081) avec location /api (GET POST DELETE, max 1M).</p>
+                <a href="http://localhost:8081/api/">:8081/api/</a>
+            </div>
+            <div class="card">
+                <h3>Erreur 404</h3>
+                <p>Page d'erreur personnalisee quand une ressource n'existe pas.</p>
+                <a href="/nexiste-pas">/nexiste-pas</a>
+            </div>
+        </div>
+    </main>
+    <footer>Webserv &mdash; 42 Project &mdash; C++98 / poll()</footer>
+</body>
+</html>
